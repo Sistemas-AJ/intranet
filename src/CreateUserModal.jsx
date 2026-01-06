@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Eye, EyeOff } from 'lucide-react';
 
 const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
     const [formData, setFormData] = useState({
@@ -23,6 +23,8 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
         compras: false,
         ventas: false,
     });
+
+    const [showPassword, setShowPassword] = useState(false);
 
     const permissionLabels = {
         fichaRuc: 'Ficha RUC',
@@ -129,7 +131,7 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
                                     placeholder="Ingrese RUC"
                                     disabled={isEdit}
                                     style={{
-                                        width: '50%',
+                                        width: isEdit ? '100%' : '50%',
                                         padding: '8px',
                                         border: '1px solid var(--border-color)',
                                         borderRadius: '4px',
@@ -137,27 +139,29 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
                                         cursor: isEdit ? 'not-allowed' : 'text'
                                     }}
                                 />
-                                <button
-                                    type="button"
-                                    onClick={handleSearchRuc}
-                                    disabled={isLoadingRuc || isEdit}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        padding: '8px 16px',
-                                        backgroundColor: isEdit ? '#999' : 'var(--color-aj-black)',
-                                        color: 'var(--color-aj-white)',
-                                        borderRadius: '4px',
-                                        fontSize: '0.9rem',
-                                        transition: 'background-color 0.2s',
-                                        opacity: isLoadingRuc || isEdit ? 0.7 : 1,
-                                        cursor: isEdit ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                    {isLoadingRuc ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={16} />}
-                                    CONSULTA SUNAT
-                                </button>
+                                {!isEdit && (
+                                    <button
+                                        type="button"
+                                        onClick={handleSearchRuc}
+                                        disabled={isLoadingRuc}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            padding: '8px 16px',
+                                            backgroundColor: 'var(--color-aj-black)',
+                                            color: 'var(--color-aj-white)',
+                                            borderRadius: '4px',
+                                            fontSize: '0.9rem',
+                                            transition: 'background-color 0.2s',
+                                            opacity: isLoadingRuc ? 0.7 : 1,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {isLoadingRuc ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={16} />}
+                                        CONSULTA SUNAT
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div>
@@ -221,23 +225,44 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Contraseña</label>
-                                <input
-                                    type="password"
-                                    name="contrasena"
-                                    value={formData.contrasena}
-                                    onChange={handleInputChange}
-                                    required
-                                    placeholder="Contraseña de acceso"
-                                    disabled={isEdit}
-                                    style={{
-                                        width: '100%',
-                                        padding: '8px',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: '4px',
-                                        backgroundColor: isEdit ? '#f0f0f0' : 'white',
-                                        cursor: isEdit ? 'not-allowed' : 'text'
-                                    }}
-                                />
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        name="contrasena"
+                                        value={formData.contrasena}
+                                        onChange={handleInputChange}
+                                        required
+                                        placeholder="Contraseña de acceso"
+                                        disabled={isEdit}
+                                        style={{
+                                            width: '100%',
+                                            padding: '8px',
+                                            paddingRight: '35px',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: '4px',
+                                            backgroundColor: isEdit ? '#f0f0f0' : 'white',
+                                            cursor: isEdit ? 'not-allowed' : 'text'
+                                        }}
+                                    />
+                                    {isEdit && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '10px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                color: '#666'
+                                            }}
+                                        >
+                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
