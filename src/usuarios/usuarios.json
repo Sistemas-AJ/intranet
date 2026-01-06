@@ -1,0 +1,10 @@
+{
+    "users": [
+        {
+            "usuario": "ADMIN",
+            "contrasena": "12345",
+            "role": "admin",
+            "razonSocial": "Administrador"
+        }
+    ]
+}

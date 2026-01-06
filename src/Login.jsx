@@ -5,6 +5,8 @@ import logo from './assets/LogoSolo.png';
 import logoHorizontal from './assets/Logo Horizonal.png';
 import officeBg from './assets/office_bg.png';
 
+import seedUsers from './usuarios/usuarios.json';
+
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -14,8 +16,20 @@ const Login = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (username === 'ADMIN' && password === '12345') {
-      navigate('/dashboard');
+
+    // Combine seed users and localStorage companies
+    const localCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
+    const allUsers = [...seedUsers.users, ...localCompanies];
+
+    const user = allUsers.find(u => u.usuario === username && u.contrasena === password);
+
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      if (user.role === 'admin') {
+        navigate('/dashboard');
+      } else {
+        navigate('/company');
+      }
     } else {
       setError('Usuario o contraseña incorrectos');
     }

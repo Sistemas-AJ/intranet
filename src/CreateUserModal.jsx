@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 
-const CreateUserModal = ({ onClose }) => {
+const CreateUserModal = ({ onClose, onCreate }) => {
     const [formData, setFormData] = useState({
         ruc: '',
         razonSocial: '',
         direccion: '',
+        usuario: '',
+        contrasena: '',
     });
 
     const [permissions, setPermissions] = useState({
@@ -74,9 +76,15 @@ const CreateUserModal = ({ onClose }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        console.log('Creating User:', { ...formData, permissions });
-        alert('Usuario creado exitosamente (Simulación)');
-        onClose();
+        const newCompany = { ...formData, permissions };
+        console.log('Creating User:', newCompany);
+        alert('Usuario creado exitosamente');
+
+        if (onCreate) {
+            onCreate(newCompany);
+        } else {
+            onClose();
+        }
     };
 
     return (
@@ -169,6 +177,32 @@ const CreateUserModal = ({ onClose }) => {
                                 required
                                 style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
                             />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Usuario</label>
+                                <input
+                                    type="text"
+                                    name="usuario"
+                                    value={formData.usuario}
+                                    onChange={handleInputChange}
+                                    required
+                                    placeholder="Usuario para la empresa"
+                                    style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Contraseña</label>
+                                <input
+                                    type="password"
+                                    name="contrasena"
+                                    value={formData.contrasena}
+                                    onChange={handleInputChange}
+                                    required
+                                    placeholder="Contraseña de acceso"
+                                    style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                                />
+                            </div>
                         </div>
                     </div>
 
