@@ -15,6 +15,7 @@ const Dashboard = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
+    const [editingCompany, setEditingCompany] = useState(null);
     const navigate = useNavigate();
 
     const filteredCompanies = companies.filter(company =>
@@ -28,13 +29,24 @@ const Dashboard = () => {
     };
 
     const handleCreateCompany = (companyData) => {
-        // Add role to company data for login purposes
-        const newCompany = { ...companyData, role: 'company' };
-        const updatedCompanies = [...companies, newCompany];
+        let updatedCompanies;
+
+        if (editingCompany) {
+            // Update existing company
+            updatedCompanies = companies.map(company =>
+                company.ruc === editingCompany.ruc ? { ...company, ...companyData } : company
+            );
+        } else {
+            // Create new company
+            // Add role to company data for login purposes
+            const newCompany = { ...companyData, role: 'company' };
+            updatedCompanies = [...companies, newCompany];
+        }
 
         setCompanies(updatedCompanies);
         localStorage.setItem('companies', JSON.stringify(updatedCompanies));
         setIsModalOpen(false);
+        setEditingCompany(null);
     };
 
     const handleDeleteCompany = (ruc) => {
@@ -45,8 +57,13 @@ const Dashboard = () => {
         }
     };
 
-    // Assuming user is ADMIN for now as per requirements
-    const userName = "ADMIN";
+    const handleEditClick = (company) => {
+        setEditingCompany(company);
+        setIsModalOpen(true);
+    };
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userName = currentUser.razonSocial || currentUser.usuario || "ADMIN";
 
     return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
@@ -220,7 +237,8 @@ const Dashboard = () => {
                                 {isEditMode && (
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <button
-                                            // Future edit functionality
+                                            // Edit functionality
+                                            onClick={() => handleEditClick(company)}
                                             title="Editar"
                                             style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#555' }}
                                         >
@@ -252,66 +270,86 @@ const Dashboard = () => {
             </div>
 
             {/* Main Content */}
-            <main style={{ flex: 1, padding: '40px', maxWidth: '1400px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ display: 'flex', gap: '30px', alignItems: 'stretch' }}>
+            <main style={{ flex: 1, padding: '40px', maxWidth: '1200px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: '30px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {/* Welcome Message */}
                     <div style={{
                         backgroundColor: 'var(--color-aj-white)',
                         padding: '40px',
                         borderRadius: '8px',
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         borderLeft: '8px solid var(--color-aj-red)',
-                        background: 'linear-gradient(to right, #fff, #f9f9f9)',
-                        flex: 1,
+                        maxWidth: '700px',
+                        textAlign: 'left',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center'
                     }}>
-                        <h2 style={{ fontSize: '2.2rem', marginBottom: '15px', color: 'var(--color-aj-black)' }}>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '20px', color: 'var(--color-aj-black)', lineHeight: '1.2' }}>
                             ¡Bienvenido al Centro de Control, {userName}!
                         </h2>
-                        <p style={{ color: '#555', fontSize: '1.1rem', maxWidth: '800px', lineHeight: '1.8' }}>
-                            Has ingresado a la <strong>Intranet de AJ Contratistas Generales</strong>.
-                            Desde este panel podrás gestionar usuarios, administrar permisos y supervisar las actividades de la empresa con total eficiencia.
-                            Todas las herramientas administrativas están listas para su uso.
+                        <p style={{ color: '#555', fontSize: '1.2rem', lineHeight: '1.6' }}>
+                            Has ingresado a la <strong>Intranet de AJ Contratistas Generales</strong>. Desde este panel podrás gestionar usuarios, administrar permisos y supervisar las actividades de la empresa con total eficiencia. Todas las herramientas administrativas están listas para su uso.
                         </p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 300px)' }}>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            style={{
-                                padding: '30px',
-                                backgroundColor: 'var(--color-aj-white)',
-                                border: '2px solid var(--color-aj-black)',
-                                borderRadius: '8px',
-                                textAlign: 'center',
-                                fontSize: '1.2rem',
-                                fontWeight: 'bold',
-                                transition: 'all 0.2s',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minHeight: '200px',
-                                height: '100%'
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-aj-black)';
-                                e.currentTarget.style.color = 'var(--color-aj-white)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-aj-white)';
-                                e.currentTarget.style.color = 'var(--color-aj-black)';
-                            }}
-                        >
-                            <span style={{ fontSize: '3rem', marginBottom: '10px' }}>+</span>
-                            Crear Usuario de Empresa
-                        </button>
+                    {/* Create User Card */}
+                    <div
+                        onClick={() => {
+                            setEditingCompany(null);
+                            setIsModalOpen(true);
+                        }}
+                        style={{
+                            backgroundColor: 'var(--color-aj-red)',
+                            padding: '40px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '280px', // Fixed width for square-ish look
+                            minHeight: '280px',
+                            transition: 'transform 0.2s, box-shadow 0.2s',
+                            textAlign: 'center'
+                        }}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-5px)';
+                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(220, 38, 38, 0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+                        }}
+                    >
+                        <div style={{
+                            backgroundColor: 'white',
+                            borderRadius: '50%',
+                            padding: '20px',
+                            marginBottom: '20px',
+                            color: 'var(--color-aj-red)'
+                        }}>
+                            <User size={48} />
+                        </div>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Crear Usuario de Empresa</h3>
+                        <p style={{ marginTop: '10px', opacity: 0.9 }}>Registrar nuevo cliente</p>
                     </div>
                 </div>
             </main>
 
-            {isModalOpen && <CreateUserModal onClose={() => setIsModalOpen(false)} onCreate={handleCreateCompany} />}
+            {isModalOpen && (
+                <CreateUserModal
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setEditingCompany(null);
+                    }}
+                    onCreate={handleCreateCompany}
+                    initialData={editingCompany}
+                    isEdit={!!editingCompany}
+                />
+            )}
         </div>
     );
 };

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 
-const CreateUserModal = ({ onClose, onCreate }) => {
+const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
     const [formData, setFormData] = useState({
-        ruc: '',
-        razonSocial: '',
-        direccion: '',
-        usuario: '',
-        contrasena: '',
+        ruc: initialData?.ruc || '',
+        razonSocial: initialData?.razonSocial || '',
+        direccion: initialData?.direccion || '',
+        usuario: initialData?.usuario || '',
+        contrasena: initialData?.contrasena || '',
     });
 
-    const [permissions, setPermissions] = useState({
+    const [permissions, setPermissions] = useState(initialData?.permissions || {
         fichaRuc: false,
         declaracionesMensuales: false,
         declaracionesAnuales: false,
@@ -77,8 +77,8 @@ const CreateUserModal = ({ onClose, onCreate }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         const newCompany = { ...formData, permissions };
-        console.log('Creating User:', newCompany);
-        alert('Usuario creado exitosamente');
+        // console.log('Creating/Updating User:', newCompany);
+        alert(isEdit ? 'Permisos actualizados exitosamente' : 'Usuario creado exitosamente');
 
         if (onCreate) {
             onCreate(newCompany);
@@ -111,7 +111,7 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                 position: 'relative'
             }}>
                 <h2 style={{ marginBottom: '20px', color: 'var(--color-aj-red)', borderBottom: '2px solid var(--color-aj-black)', paddingBottom: '10px' }}>
-                    Crear Usuario de Empresa
+                    {isEdit ? 'Editar Permisos de Empresa' : 'Crear Usuario de Empresa'}
                 </h2>
 
                 <form onSubmit={handleSubmit}>
@@ -127,28 +127,32 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                                     required
                                     maxLength={11}
                                     placeholder="Ingrese RUC"
+                                    disabled={isEdit}
                                     style={{
                                         width: '50%',
                                         padding: '8px',
                                         border: '1px solid var(--border-color)',
-                                        borderRadius: '4px'
+                                        borderRadius: '4px',
+                                        backgroundColor: isEdit ? '#f0f0f0' : 'white',
+                                        cursor: isEdit ? 'not-allowed' : 'text'
                                     }}
                                 />
                                 <button
                                     type="button"
                                     onClick={handleSearchRuc}
-                                    disabled={isLoadingRuc}
+                                    disabled={isLoadingRuc || isEdit}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
                                         padding: '8px 16px',
-                                        backgroundColor: 'var(--color-aj-black)',
+                                        backgroundColor: isEdit ? '#999' : 'var(--color-aj-black)',
                                         color: 'var(--color-aj-white)',
                                         borderRadius: '4px',
                                         fontSize: '0.9rem',
                                         transition: 'background-color 0.2s',
-                                        opacity: isLoadingRuc ? 0.7 : 1
+                                        opacity: isLoadingRuc || isEdit ? 0.7 : 1,
+                                        cursor: isEdit ? 'not-allowed' : 'pointer'
                                     }}
                                 >
                                     {isLoadingRuc ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={16} />}
@@ -164,7 +168,15 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                                 value={formData.razonSocial}
                                 onChange={handleInputChange}
                                 required
-                                style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                                disabled={isEdit}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    backgroundColor: isEdit ? '#f0f0f0' : 'white',
+                                    cursor: isEdit ? 'not-allowed' : 'text'
+                                }}
                             />
                         </div>
                         <div>
@@ -175,7 +187,15 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                                 value={formData.direccion}
                                 onChange={handleInputChange}
                                 required
-                                style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                                disabled={isEdit}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    backgroundColor: isEdit ? '#f0f0f0' : 'white',
+                                    cursor: isEdit ? 'not-allowed' : 'text'
+                                }}
                             />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -188,7 +208,15 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                                     onChange={handleInputChange}
                                     required
                                     placeholder="Usuario para la empresa"
-                                    style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                                    disabled={isEdit}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '4px',
+                                        backgroundColor: isEdit ? '#f0f0f0' : 'white',
+                                        cursor: isEdit ? 'not-allowed' : 'text'
+                                    }}
                                 />
                             </div>
                             <div>
@@ -200,7 +228,15 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                                     onChange={handleInputChange}
                                     required
                                     placeholder="Contraseña de acceso"
-                                    style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                                    disabled={isEdit}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '4px',
+                                        backgroundColor: isEdit ? '#f0f0f0' : 'white',
+                                        cursor: isEdit ? 'not-allowed' : 'text'
+                                    }}
                                 />
                             </div>
                         </div>
@@ -245,7 +281,7 @@ const CreateUserModal = ({ onClose, onCreate }) => {
                                 borderRadius: '4px'
                             }}
                         >
-                            Guardar
+                            {isEdit ? 'Guardar Cambios' : 'Guardar'}
                         </button>
                     </div>
                 </form>
