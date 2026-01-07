@@ -1,12 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
 
 const CompanyDashboard = () => {
     const navigate = useNavigate();
-    const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userName = currentUser.razonSocial || currentUser.usuario || "Usuario";
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
@@ -36,14 +37,30 @@ const CompanyDashboard = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 backgroundColor: 'var(--color-aj-black)',
-                color: 'var(--color-aj-white)'
+                color: 'var(--color-aj-white)',
+                position: 'relative',
+                zIndex: 20
             }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <img src={logo} alt="AJ Logo" style={{ height: '40px', marginRight: '15px', filter: 'brightness(0) invert(1)' }} />
                     <h1 style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Adolfo Jurado Contratistas Generales</h1>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <span style={{ fontWeight: '500' }}>{currentUser.razonSocial || 'Empresa'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                            width: '35px',
+                            height: '35px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--color-aj-white)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--color-aj-black)'
+                        }}>
+                            <User size={20} />
+                        </div>
+                        <span style={{ fontWeight: '500' }}>{userName}</span>
+                    </div>
                     <button
                         onClick={handleLogout}
                         style={{
@@ -56,7 +73,16 @@ const CompanyDashboard = () => {
                             padding: '8px 15px',
                             borderRadius: '4px',
                             transition: 'all 0.2s',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            cursor: 'pointer'
+                        }}
+                        onMouseOver={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-aj-white)';
+                            e.currentTarget.style.color = 'var(--color-aj-black)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.color = 'var(--color-aj-white)';
                         }}
                     >
                         <LogOut size={16} />
@@ -73,16 +99,19 @@ const CompanyDashboard = () => {
                     borderRadius: '8px',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                     borderLeft: '8px solid var(--color-aj-red)',
-                    textAlign: 'center',
-                    maxWidth: '800px'
+                    maxWidth: '800px',
+                    width: '100%',
+                    textAlign: 'left'
                 }}>
-                    <h2 style={{ fontSize: '2.5rem', marginBottom: '20px', color: 'var(--color-aj-black)' }}>
-                        Bienvenido, {currentUser.razonSocial || 'Usuario'}
+                    <h2 style={{ fontSize: '2rem', marginBottom: '20px', color: 'var(--color-aj-black)' }}>
+                        Panel de Empresa
                     </h2>
-                    <p style={{ color: '#555', fontSize: '1.2rem', lineHeight: '1.8' }}>
-                        Has ingresado exitosamente a tu portal de empresa.
-                        <br />
-                        Aquí podrás visualizar tus declaraciones, reportes y estado actual.
+                    <p style={{ color: '#555', fontSize: '1.1rem', marginBottom: '20px' }}>
+                        Bienvenido, <strong>{userName}</strong>.
+                    </p>
+                    <p style={{ color: '#555', lineHeight: '1.6' }}>
+                        Aquí podrás visualizar tus documentos, declaraciones y estado de cuenta.
+                        Próximamente encontrarás más funcionalidades disponibles.
                     </p>
                 </div>
             </main>
