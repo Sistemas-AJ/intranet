@@ -84,6 +84,216 @@ const CompanyDashboard = () => {
     const [uploadAnnualYear, setUploadAnnualYear] = React.useState('');
     const [uploadAnnualFile, setUploadAnnualFile] = React.useState(null);
 
+    // State for Plame - Boletas de Pago
+    const [plameView, setPlameView] = React.useState('menu'); // 'menu', 'boletas', 'upload_boletas'
+    const [boletasList, setBoletasList] = React.useState([]); // List of uploaded boletas
+    const [boletasFilterYear, setBoletasFilterYear] = React.useState('');
+    const [boletasFilterMonth, setBoletasFilterMonth] = React.useState('');
+
+    // Upload Boletas Form State
+    const [uploadBoletasYear, setUploadBoletasYear] = React.useState('');
+    const [uploadBoletasMonth, setUploadBoletasMonth] = React.useState('');
+    const [uploadBoletasFiles, setUploadBoletasFiles] = React.useState([]); // Supports multiple files
+
+    const handleBoletasUpload = (event) => {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+            setUploadBoletasFiles(prev => [...prev, ...files]);
+        }
+    };
+
+    const handleSaveBoletas = () => {
+        if (!uploadBoletasYear || !uploadBoletasMonth || uploadBoletasFiles.length === 0) {
+            alert('Por favor complete todos los campos y seleccione al menos un archivo');
+            return;
+        }
+
+        const newBoletas = uploadBoletasFiles.map(file => ({
+            id: Date.now() + Math.random(),
+            year: uploadBoletasYear,
+            month: uploadBoletasMonth,
+            url: URL.createObjectURL(file), // Mock URL for preview
+            name: file.name,
+            type: file.type
+        }));
+
+        setBoletasList(prev => [...prev, ...newBoletas]);
+
+        // Reset and go back to list
+        setUploadBoletasYear('');
+        setUploadBoletasMonth('');
+        setUploadBoletasFiles([]);
+        setPlameView('boletas');
+
+        // Auto-select filter to show new items
+        setBoletasFilterYear(uploadBoletasYear);
+        setBoletasFilterMonth(uploadBoletasMonth);
+    };
+
+    const handleDeleteBoleta = (id) => {
+        if (window.confirm('¿Estás seguro de eliminar esta boleta?')) {
+            setBoletasList(prev => prev.filter(b => b.id !== id));
+        }
+    };
+
+    // State for Plame - Constancias de Declaración
+    const [constanciasList, setConstanciasList] = React.useState([]);
+    const [constanciasFilterYear, setConstanciasFilterYear] = React.useState('');
+    const [constanciasFilterMonth, setConstanciasFilterMonth] = React.useState('');
+
+    // Upload Constancias Form State
+    const [uploadConstanciasYear, setUploadConstanciasYear] = React.useState('');
+    const [uploadConstanciasMonth, setUploadConstanciasMonth] = React.useState('');
+    const [uploadConstanciasFiles, setUploadConstanciasFiles] = React.useState([]);
+
+    const handleConstanciasUpload = (event) => {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+            setUploadConstanciasFiles(prev => [...prev, ...files]);
+        }
+    };
+
+    const handleSaveConstancias = () => {
+        if (!uploadConstanciasYear || !uploadConstanciasMonth || uploadConstanciasFiles.length === 0) {
+            alert('Por favor complete todos los campos y seleccione al menos un archivo');
+            return;
+        }
+
+        const newConstancias = uploadConstanciasFiles.map(file => ({
+            id: Date.now() + Math.random(),
+            year: uploadConstanciasYear,
+            month: uploadConstanciasMonth,
+            url: URL.createObjectURL(file),
+            name: file.name,
+            type: file.type
+        }));
+
+        setConstanciasList(prev => [...prev, ...newConstancias]);
+
+        // Reset and go back to list
+        setUploadConstanciasYear('');
+        setUploadConstanciasMonth('');
+        setUploadConstanciasFiles([]);
+        setPlameView('constancias');
+
+        // Auto-select filter to show new items
+        setConstanciasFilterYear(uploadConstanciasYear);
+        setConstanciasFilterMonth(uploadConstanciasMonth);
+    };
+
+    const handleDeleteConstancia = (id) => {
+        if (window.confirm('¿Estás seguro de eliminar esta constancia?')) {
+            setConstanciasList(prev => prev.filter(c => c.id !== id));
+        }
+    };
+
+    // State for Plame - NPS
+    const [npsList, setNpsList] = React.useState([]);
+    const [npsFilterYear, setNpsFilterYear] = React.useState('');
+    const [npsFilterMonth, setNpsFilterMonth] = React.useState('');
+
+    // Upload NPS Form State
+    const [uploadNpsYear, setUploadNpsYear] = React.useState('');
+    const [uploadNpsMonth, setUploadNpsMonth] = React.useState('');
+    const [uploadNpsFiles, setUploadNpsFiles] = React.useState([]);
+
+    const handleNpsUpload = (event) => {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+            setUploadNpsFiles(prev => [...prev, ...files]);
+        }
+    };
+
+    const handleSaveNps = () => {
+        if (!uploadNpsYear || !uploadNpsMonth || uploadNpsFiles.length === 0) {
+            alert('Por favor complete todos los campos y seleccione al menos un archivo');
+            return;
+        }
+
+        const newNps = uploadNpsFiles.map(file => ({
+            id: Date.now() + Math.random(),
+            year: uploadNpsYear,
+            month: uploadNpsMonth,
+            url: URL.createObjectURL(file),
+            name: file.name,
+            type: file.type
+        }));
+
+        setNpsList(prev => [...prev, ...newNps]);
+
+        // Reset and go back to list
+        setUploadNpsYear('');
+        setUploadNpsMonth('');
+        setUploadNpsFiles([]);
+        setPlameView('nps');
+
+        // Auto-select filter to show new items
+        setNpsFilterYear(uploadNpsYear);
+        setNpsFilterMonth(uploadNpsMonth);
+    };
+
+    const handleDeleteNps = (id) => {
+        if (window.confirm('¿Estás seguro de eliminar este NPS?')) {
+            setNpsList(prev => prev.filter(n => n.id !== id));
+        }
+    };
+
+
+
+    // State for AFP NET
+    const [afpNetList, setAfpNetList] = React.useState([]);
+    const [afpFilterYear, setAfpFilterYear] = React.useState('');
+    const [afpFilterMonth, setAfpFilterMonth] = React.useState('');
+
+    // Upload AFP NET Form State
+    const [showAfpUploadForm, setShowAfpUploadForm] = React.useState(false);
+    const [uploadAfpYear, setUploadAfpYear] = React.useState('');
+    const [uploadAfpMonth, setUploadAfpMonth] = React.useState('');
+    const [uploadAfpType, setUploadAfpType] = React.useState(''); // 'Detalle' or 'Ticket'
+    const [uploadAfpFile, setUploadAfpFile] = React.useState(null);
+
+    const handleAfpUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setUploadAfpFile(file);
+        }
+    };
+
+    const handleSaveAfp = () => {
+        if (!uploadAfpYear || !uploadAfpMonth || !uploadAfpType || !uploadAfpFile) {
+            alert('Por favor complete todos los campos, seleccione el tipo y un archivo');
+            return;
+        }
+
+        const newAfp = {
+            id: Date.now(),
+            year: uploadAfpYear,
+            month: uploadAfpMonth,
+            type: uploadAfpType,
+            url: URL.createObjectURL(uploadAfpFile),
+            name: uploadAfpFile.name
+        };
+
+        setAfpNetList(prev => [...prev, newAfp]);
+
+        // Reset and close form
+        setUploadAfpYear('');
+        setUploadAfpMonth('');
+        setUploadAfpType('');
+        setUploadAfpFile(null);
+        setShowAfpUploadForm(false);
+
+        // Auto-select filter
+        setAfpFilterYear(uploadAfpYear);
+        setAfpFilterMonth(uploadAfpMonth);
+    };
+
+    const handleDeleteAfp = (id) => {
+        if (window.confirm('¿Estás seguro de eliminar este documento de AFP NET?')) {
+            setAfpNetList(prev => prev.filter(a => a.id !== id));
+        }
+    };
+
     const handleSaveAnnualDeclaration = () => {
         if (!uploadAnnualYear || !uploadAnnualFile) {
             alert('Por favor complete todos los campos');
@@ -393,7 +603,7 @@ const CompanyDashboard = () => {
                             </div>
 
                             {/* Generic Upload Button - Only show if NOT monthly declarations, annual declarations, or Plame */}
-                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame'].includes(selectedPermission) && (
+                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet'].includes(selectedPermission) && (
                                 <div>
                                     <input
                                         type="file"
@@ -838,56 +1048,937 @@ const CompanyDashboard = () => {
                             </div>
                         ) : selectedPermission === 'plame' ? (
                             /* Special UI for Plame */
-                            <div style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', width: '100%', gap: '20px' }}>
-                                    {[
-                                        { label: 'Boletas de Pago', icon: FileText },
-                                        { label: 'Constancias de Declaración', icon: ShieldCheck },
-                                        { label: 'NPS', icon: FileBarChart }
-                                    ].map((item, index) => (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {plameView === 'menu' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', height: '100%' }}>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', width: '100%', gap: '20px' }}>
+                                            {[
+                                                { label: 'Boletas de Pago', icon: FileText, action: () => setPlameView('boletas') },
+                                                { label: 'Constancias de Declaración', icon: ShieldCheck, action: () => setPlameView('constancias') },
+                                                { label: 'NPS', icon: FileBarChart, action: () => setPlameView('nps') }
+                                            ].map((item, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={item.action}
+                                                    style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        padding: '30px',
+                                                        backgroundColor: 'white',
+                                                        border: '1px solid #e5e7eb',
+                                                        borderRadius: '12px',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                                        gap: '15px',
+                                                        width: '250px', // Fixed width for consistency
+                                                        flex: '0 0 auto' // Prevent stretching
+                                                    }}
+                                                    onMouseOver={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(-5px)';
+                                                        e.currentTarget.style.boxShadow = '0 10px 15px rgba(0,0,0,0.1)';
+                                                        e.currentTarget.style.borderColor = 'var(--color-aj-red)';
+                                                        e.currentTarget.style.color = 'var(--color-aj-red)';
+                                                    }}
+                                                    onMouseOut={(e) => {
+                                                        e.currentTarget.style.transform = 'none';
+                                                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+                                                        e.currentTarget.style.borderColor = '#e5e7eb';
+                                                        e.currentTarget.style.color = 'inherit';
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        padding: '15px',
+                                                        backgroundColor: '#fff1f2',
+                                                        borderRadius: '50%',
+                                                        color: 'var(--color-aj-red)'
+                                                    }}>
+                                                        <item.icon size={32} />
+                                                    </div>
+                                                    <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {plameView === 'boletas' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
+                                            <button
+                                                onClick={() => setPlameView('menu')}
+                                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '5px' }}
+                                            >
+                                                <LogOut size={20} style={{ transform: 'rotate(180deg)' }} />
+                                            </button>
+                                            <div style={{
+                                                color: 'var(--color-aj-red)',
+                                                backgroundColor: '#fff1f2',
+                                                padding: '10px',
+                                                borderRadius: '50%'
+                                            }}>
+                                                <FileText size={24} />
+                                            </div>
+                                            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>Boletas de Pago</h3>
+                                        </div>
+
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={boletasFilterYear}
+                                                    onChange={(e) => setBoletasFilterYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(boletasList.map(b => b.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={boletasFilterMonth}
+                                                    onChange={(e) => setBoletasFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredBoletas = boletasList.filter(b =>
+                                                    (!boletasFilterYear || b.year === boletasFilterYear) &&
+                                                    (!boletasFilterMonth || b.month === boletasFilterMonth)
+                                                );
+
+                                                if (filteredBoletas.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredBoletas.map(boleta => (
+                                                                <div
+                                                                    key={boleta.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <FileText size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{boleta.name}</div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{boleta.month} {boleta.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={boleta.url}
+                                                                            download={boleta.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleDeleteBoleta(boleta.id)}
+                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                        >
+                                                                            <X size={20} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <FileText size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron boletas de pago.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
                                         <button
-                                            key={index}
+                                            onClick={() => setPlameView('upload_boletas')}
                                             style={{
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                padding: '30px',
-                                                backgroundColor: 'white',
-                                                border: '1px solid #e5e7eb',
-                                                borderRadius: '12px',
+                                                width: '100%',
+                                                padding: '15px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: 'var(--color-aj-red)',
+                                                color: 'white',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.2s',
-                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                gap: '15px',
-                                                width: '250px', // Fixed width for consistency
-                                                flex: '0 0 auto' // Prevent stretching
-                                            }}
-                                            onMouseOver={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-5px)';
-                                                e.currentTarget.style.boxShadow = '0 10px 15px rgba(0,0,0,0.1)';
-                                                e.currentTarget.style.borderColor = 'var(--color-aj-red)';
-                                                e.currentTarget.style.color = 'var(--color-aj-red)';
-                                            }}
-                                            onMouseOut={(e) => {
-                                                e.currentTarget.style.transform = 'none';
-                                                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
-                                                e.currentTarget.style.borderColor = '#e5e7eb';
-                                                e.currentTarget.style.color = 'inherit';
+                                                fontWeight: 'bold',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                gap: '10px'
                                             }}
                                         >
-                                            <div style={{
-                                                padding: '15px',
-                                                backgroundColor: '#fff1f2',
-                                                borderRadius: '50%',
-                                                color: 'var(--color-aj-red)'
-                                            }}>
-                                                <item.icon size={32} />
-                                            </div>
-                                            <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.label}</span>
+                                            <Upload size={20} />
+                                            Subir Boletas de Pago
                                         </button>
-                                    ))}
-                                </div>
+                                    </div>
+                                )}
+
+                                {plameView === 'upload_boletas' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Boletas de Pago</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadBoletasYear}
+                                                    onChange={(e) => setUploadBoletasYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadBoletasMonth}
+                                                    onChange={(e) => setUploadBoletasMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="boletas-upload"
+                                                accept="application/pdf"
+                                                multiple
+                                                style={{ display: 'none' }}
+                                                onChange={handleBoletasUpload}
+                                            />
+                                            <label htmlFor="boletas-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadBoletasFiles.length > 0
+                                                        ? `${uploadBoletasFiles.length} archivo(s) seleccionado(s)`
+                                                        : 'Seleccionar PDF(s) de Boletas (Máximo varios)'}
+                                                </span>
+                                            </label>
+                                            {uploadBoletasFiles.length > 0 && (
+                                                <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#666' }}>
+                                                    {uploadBoletasFiles.map((f, i) => <div key={i}>{f.name}</div>)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setPlameView('boletas');
+                                                    setUploadBoletasFiles([]);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveBoletas}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir Boletas
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {plameView === 'constancias' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
+                                            <button
+                                                onClick={() => setPlameView('menu')}
+                                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '5px' }}
+                                            >
+                                                <LogOut size={20} style={{ transform: 'rotate(180deg)' }} />
+                                            </button>
+                                            <div style={{
+                                                color: 'var(--color-aj-red)',
+                                                backgroundColor: '#fff1f2',
+                                                padding: '10px',
+                                                borderRadius: '50%'
+                                            }}>
+                                                <ShieldCheck size={24} />
+                                            </div>
+                                            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>Constancias de Declaración</h3>
+                                        </div>
+
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={constanciasFilterYear}
+                                                    onChange={(e) => setConstanciasFilterYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(constanciasList.map(c => c.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={constanciasFilterMonth}
+                                                    onChange={(e) => setConstanciasFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredConstancias = constanciasList.filter(c =>
+                                                    (!constanciasFilterYear || c.year === constanciasFilterYear) &&
+                                                    (!constanciasFilterMonth || c.month === constanciasFilterMonth)
+                                                );
+
+                                                if (filteredConstancias.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredConstancias.map(constancia => (
+                                                                <div
+                                                                    key={constancia.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <ShieldCheck size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{constancia.name}</div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{constancia.month} {constancia.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={constancia.url}
+                                                                            download={constancia.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleDeleteConstancia(constancia.id)}
+                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                        >
+                                                                            <X size={20} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <ShieldCheck size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron constancias de declaración.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setPlameView('upload_constancias')}
+                                            style={{
+                                                width: '100%',
+                                                padding: '15px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: 'var(--color-aj-red)',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                gap: '10px'
+                                            }}
+                                        >
+                                            <Upload size={20} />
+                                            Subir constancias
+                                        </button>
+                                    </div>
+                                )}
+
+                                {plameView === 'upload_constancias' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Constancias de Declaración</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadConstanciasYear}
+                                                    onChange={(e) => setUploadConstanciasYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadConstanciasMonth}
+                                                    onChange={(e) => setUploadConstanciasMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="constancias-upload"
+                                                accept="application/pdf"
+                                                multiple
+                                                style={{ display: 'none' }}
+                                                onChange={handleConstanciasUpload}
+                                            />
+                                            <label htmlFor="constancias-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadConstanciasFiles.length > 0
+                                                        ? `${uploadConstanciasFiles.length} archivo(s) seleccionado(s)`
+                                                        : 'Seleccionar PDF(s) de Constancias'}
+                                                </span>
+                                            </label>
+                                            {uploadConstanciasFiles.length > 0 && (
+                                                <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#666' }}>
+                                                    {uploadConstanciasFiles.map((f, i) => <div key={i}>{f.name}</div>)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setPlameView('constancias');
+                                                    setUploadConstanciasFiles([]);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveConstancias}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir constancia
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {plameView === 'nps' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
+                                            <button
+                                                onClick={() => setPlameView('menu')}
+                                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '5px' }}
+                                            >
+                                                <LogOut size={20} style={{ transform: 'rotate(180deg)' }} />
+                                            </button>
+                                            <div style={{
+                                                color: 'var(--color-aj-red)',
+                                                backgroundColor: '#fff1f2',
+                                                padding: '10px',
+                                                borderRadius: '50%'
+                                            }}>
+                                                <FileBarChart size={24} />
+                                            </div>
+                                            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>NPS</h3>
+                                        </div>
+
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={npsFilterYear}
+                                                    onChange={(e) => setNpsFilterYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(npsList.map(n => n.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={npsFilterMonth}
+                                                    onChange={(e) => setNpsFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredNps = npsList.filter(n =>
+                                                    (!npsFilterYear || n.year === npsFilterYear) &&
+                                                    (!npsFilterMonth || n.month === npsFilterMonth)
+                                                );
+
+                                                if (filteredNps.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredNps.map(n => (
+                                                                <div
+                                                                    key={n.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <FileBarChart size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{n.name}</div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{n.month} {n.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={n.url}
+                                                                            download={n.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleDeleteNps(n.id)}
+                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                        >
+                                                                            <X size={20} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <FileBarChart size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron NPS.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setPlameView('upload_nps')}
+                                            style={{
+                                                width: '100%',
+                                                padding: '15px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: 'var(--color-aj-red)',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                gap: '10px'
+                                            }}
+                                        >
+                                            <Upload size={20} />
+                                            Subir los NPS
+                                        </button>
+                                    </div>
+                                )}
+
+                                {plameView === 'upload_nps' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir NPS</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadNpsYear}
+                                                    onChange={(e) => setUploadNpsYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadNpsMonth}
+                                                    onChange={(e) => setUploadNpsMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="nps-upload"
+                                                accept="application/pdf"
+                                                multiple
+                                                style={{ display: 'none' }}
+                                                onChange={handleNpsUpload}
+                                            />
+                                            <label htmlFor="nps-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadNpsFiles.length > 0
+                                                        ? `${uploadNpsFiles.length} archivo(s) seleccionado(s)`
+                                                        : 'Seleccionar PDF(s) de NPS'}
+                                                </span>
+                                            </label>
+                                            {uploadNpsFiles.length > 0 && (
+                                                <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#666' }}>
+                                                    {uploadNpsFiles.map((f, i) => <div key={i}>{f.name}</div>)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setPlameView('nps');
+                                                    setUploadNpsFiles([]);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveNps}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir NPS
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : selectedPermission === 'afpNet' ? (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {!showAfpUploadForm ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={afpFilterYear}
+                                                    onChange={(e) => setAfpFilterYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(afpNetList.map(a => a.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={afpFilterMonth}
+                                                    onChange={(e) => setAfpFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredAfp = afpNetList.filter(a =>
+                                                    (!afpFilterYear || a.year === afpFilterYear) &&
+                                                    (!afpFilterMonth || a.month === afpFilterMonth)
+                                                );
+
+                                                if (filteredAfp.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredAfp.map(afp => (
+                                                                <div
+                                                                    key={afp.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <ShieldCheck size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                                                                            <span style={{ fontWeight: '600' }}>{afp.name}</span>
+                                                                            <span style={{
+                                                                                fontSize: '0.75rem',
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '12px',
+                                                                                backgroundColor: afp.type === 'Detalle' ? '#dbeafe' : '#fce7f3',
+                                                                                color: afp.type === 'Detalle' ? '#1e40af' : '#9d174d',
+                                                                                fontWeight: '600',
+                                                                                border: '1px solid',
+                                                                                borderColor: afp.type === 'Detalle' ? '#bfdbfe' : '#fbcfe8'
+                                                                            }}>
+                                                                                {afp.type}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{afp.month} {afp.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={afp.url}
+                                                                            download={afp.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleDeleteAfp(afp.id)}
+                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                        >
+                                                                            <X size={20} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <ShieldCheck size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron documentos de AFP NET.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setShowAfpUploadForm(true)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '15px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: 'var(--color-aj-red)',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                gap: '10px'
+                                            }}
+                                        >
+                                            <Upload size={20} />
+                                            Subir Documentación de AFP NET
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Documentación AFP NET</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadAfpYear}
+                                                    onChange={(e) => setUploadAfpYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadAfpMonth}
+                                                    onChange={(e) => setUploadAfpMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Doc Type Selection */}
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '500' }}>Tipo de Documento</label>
+                                            <div style={{ display: 'flex', gap: '20px' }}>
+                                                <button
+                                                    onClick={() => setUploadAfpType('Detalle')}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '15px',
+                                                        borderRadius: '8px',
+                                                        border: `2px solid ${uploadAfpType === 'Detalle' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                        backgroundColor: uploadAfpType === 'Detalle' ? '#fff1f2' : 'white',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '600',
+                                                        color: uploadAfpType === 'Detalle' ? 'var(--color-aj-red)' : '#555'
+                                                    }}
+                                                >
+                                                    Detalle
+                                                </button>
+                                                <button
+                                                    onClick={() => setUploadAfpType('Ticket')}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '15px',
+                                                        borderRadius: '8px',
+                                                        border: `2px solid ${uploadAfpType === 'Ticket' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                        backgroundColor: uploadAfpType === 'Ticket' ? '#fff1f2' : 'white',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '600',
+                                                        color: uploadAfpType === 'Ticket' ? 'var(--color-aj-red)' : '#555'
+                                                    }}
+                                                >
+                                                    Ticket
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="afp-upload"
+                                                accept="application/pdf"
+                                                style={{ display: 'none' }}
+                                                onChange={handleAfpUpload}
+                                            />
+                                            <label htmlFor="afp-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadAfpFile ? uploadAfpFile.name : 'Seleccionar PDF'}
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setShowAfpUploadForm(false);
+                                                    setUploadAfpType('');
+                                                    setUploadAfpFile(null);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveAfp}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             /* Generic UI for Other Permissions */
