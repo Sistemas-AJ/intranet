@@ -231,7 +231,12 @@ const Dashboard = () => {
                                 alignItems: 'center'
                             }}>
                                 <div>
-                                    <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{company.razonSocial}</div>
+                                    <div
+                                        style={{ fontWeight: 'bold', marginBottom: '5px', cursor: 'pointer', textDecoration: 'underline' }}
+                                        onClick={() => navigate(`/company/${company.ruc}`)}
+                                    >
+                                        {company.razonSocial}
+                                    </div>
                                     <div style={{ fontSize: '0.9rem', color: '#666' }}>RUC: {company.ruc}</div>
                                 </div>
                                 {isEditMode && (
