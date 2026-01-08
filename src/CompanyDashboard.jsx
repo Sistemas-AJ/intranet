@@ -294,6 +294,60 @@ const CompanyDashboard = () => {
         }
     };
 
+    // State for Bancos
+    const [bancosList, setBancosList] = React.useState([]);
+    const [bancosFilterYear, setBancosFilterYear] = React.useState('');
+    const [bancosFilterMonth, setBancosFilterMonth] = React.useState('');
+
+    // Upload Bancos Form State
+    const [showBancosUploadForm, setShowBancosUploadForm] = React.useState(false);
+    const [uploadBancosYear, setUploadBancosYear] = React.useState('');
+    const [uploadBancosMonth, setUploadBancosMonth] = React.useState('');
+    const [uploadBancosType, setUploadBancosType] = React.useState(''); // 'Extracto Bancario' or 'Conciliacion Bancaria'
+    const [uploadBancosFile, setUploadBancosFile] = React.useState(null);
+
+    const handleBancosUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setUploadBancosFile(file);
+        }
+    };
+
+    const handleSaveBancos = () => {
+        if (!uploadBancosYear || !uploadBancosMonth || !uploadBancosType || !uploadBancosFile) {
+            alert('Por favor complete todos los campos, seleccione el tipo y un archivo');
+            return;
+        }
+
+        const newBanco = {
+            id: Date.now(),
+            year: uploadBancosYear,
+            month: uploadBancosMonth,
+            type: uploadBancosType,
+            url: URL.createObjectURL(uploadBancosFile),
+            name: uploadBancosFile.name
+        };
+
+        setBancosList(prev => [...prev, newBanco]);
+
+        // Reset and close form
+        setUploadBancosYear('');
+        setUploadBancosMonth('');
+        setUploadBancosType('');
+        setUploadBancosFile(null);
+        setShowBancosUploadForm(false);
+
+        // Auto-select filter
+        setBancosFilterYear(uploadBancosYear);
+        setBancosFilterMonth(uploadBancosMonth);
+    };
+
+    const handleDeleteBancos = (id) => {
+        if (window.confirm('¿Estás seguro de eliminar este documento de bancos?')) {
+            setBancosList(prev => prev.filter(b => b.id !== id));
+        }
+    };
+
     const handleSaveAnnualDeclaration = () => {
         if (!uploadAnnualYear || !uploadAnnualFile) {
             alert('Por favor complete todos los campos');
@@ -603,7 +657,7 @@ const CompanyDashboard = () => {
                             </div>
 
                             {/* Generic Upload Button - Only show if NOT monthly declarations, annual declarations, or Plame */}
-                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet'].includes(selectedPermission) && (
+                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos'].includes(selectedPermission) && (
                                 <div>
                                     <input
                                         type="file"
@@ -1735,6 +1789,244 @@ const CompanyDashboard = () => {
                                                 style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
                                             >
                                                 Subir NPS
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : selectedPermission === 'bancos' ? (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {!showBancosUploadForm ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={bancosFilterYear}
+                                                    onChange={(e) => setBancosFilterYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(bancosList.map(b => b.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={bancosFilterMonth}
+                                                    onChange={(e) => setBancosFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredBancos = bancosList.filter(b =>
+                                                    (!bancosFilterYear || b.year === bancosFilterYear) &&
+                                                    (!bancosFilterMonth || b.month === bancosFilterMonth)
+                                                );
+
+                                                if (filteredBancos.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredBancos.map(banco => (
+                                                                <div
+                                                                    key={banco.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <Landmark size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                                                                            <span style={{ fontWeight: '600' }}>{banco.name}</span>
+                                                                            <span style={{
+                                                                                fontSize: '0.75rem',
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '12px',
+                                                                                backgroundColor: banco.type === 'Extracto Bancario' ? '#dbeafe' : '#fce7f3',
+                                                                                color: banco.type === 'Extracto Bancario' ? '#1e40af' : '#9d174d',
+                                                                                fontWeight: '600',
+                                                                                border: '1px solid',
+                                                                                borderColor: banco.type === 'Extracto Bancario' ? '#bfdbfe' : '#fbcfe8'
+                                                                            }}>
+                                                                                {banco.type}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{banco.month} {banco.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={banco.url}
+                                                                            download={banco.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        <button
+                                                                            onClick={() => handleDeleteBancos(banco.id)}
+                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                        >
+                                                                            <X size={20} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <Landmark size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron documentos de Bancos.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setShowBancosUploadForm(true)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '15px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: 'var(--color-aj-red)',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                gap: '10px'
+                                            }}
+                                        >
+                                            <Upload size={20} />
+                                            Subir Documentación de Bancos
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Documento de Bancos</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadBancosYear}
+                                                    onChange={(e) => setUploadBancosYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadBancosMonth}
+                                                    onChange={(e) => setUploadBancosMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Doc Type Selection */}
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '500' }}>Tipo de Documento</label>
+                                            <div style={{ display: 'flex', gap: '20px' }}>
+                                                <button
+                                                    onClick={() => setUploadBancosType('Extracto Bancario')}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '15px',
+                                                        borderRadius: '8px',
+                                                        border: `2px solid ${uploadBancosType === 'Extracto Bancario' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                        backgroundColor: uploadBancosType === 'Extracto Bancario' ? '#fff1f2' : 'white',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '600',
+                                                        color: uploadBancosType === 'Extracto Bancario' ? 'var(--color-aj-red)' : '#555'
+                                                    }}
+                                                >
+                                                    Extracto Bancario
+                                                </button>
+                                                <button
+                                                    onClick={() => setUploadBancosType('Conciliacion Bancaria')}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '15px',
+                                                        borderRadius: '8px',
+                                                        border: `2px solid ${uploadBancosType === 'Conciliacion Bancaria' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                        backgroundColor: uploadBancosType === 'Conciliacion Bancaria' ? '#fff1f2' : 'white',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '600',
+                                                        color: uploadBancosType === 'Conciliacion Bancaria' ? 'var(--color-aj-red)' : '#555'
+                                                    }}
+                                                >
+                                                    Conciliación Bancaria
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="bancos-upload"
+                                                accept="application/pdf"
+                                                style={{ display: 'none' }}
+                                                onChange={handleBancosUpload}
+                                            />
+                                            <label htmlFor="bancos-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadBancosFile ? uploadBancosFile.name : 'Seleccionar PDF'}
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setShowBancosUploadForm(false);
+                                                    setUploadBancosType('');
+                                                    setUploadBancosFile(null);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveBancos}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir
                                             </button>
                                         </div>
                                     </div>
