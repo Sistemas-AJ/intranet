@@ -21,6 +21,7 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
         cajaChica: false,
         compras: false,
         ventas: false,
+        otrosDocumentos: false,
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -33,9 +34,10 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
         plame: 'Plame',
         afpNet: 'AFP NET',
         bancos: 'Bancos',
-        cajaChica: 'Caja Chica',
+        cajaChica: 'Control de Caja',
         compras: 'Compras',
         ventas: 'Ventas',
+        otrosDocumentos: 'Otros Documentos',
     };
 
     const handleInputChange = (e) => {

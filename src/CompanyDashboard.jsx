@@ -479,7 +479,7 @@ const CompanyDashboard = () => {
     };
 
     const handleDeleteCajaChica = (id) => {
-        if (window.confirm('¿Eliminar documento de Caja Chica?')) {
+        if (window.confirm('¿Eliminar documento de Control de Caja?')) {
             setCajaChicaList(prev => prev.filter(c => c.id !== id));
         }
     };
@@ -488,6 +488,12 @@ const CompanyDashboard = () => {
     const [comprasList, setComprasList] = React.useState([]);
     const [comprasFilterYear, setComprasFilterYear] = React.useState('');
     const [comprasFilterMonth, setComprasFilterMonth] = React.useState('');
+
+    // State for Otros Documentos
+    const [otrosDocumentosList, setOtrosDocumentosList] = React.useState([]);
+    const [showOtrosDocumentosUploadForm, setShowOtrosDocumentosUploadForm] = React.useState(false);
+    const [otrosDocumentosFilterYear, setOtrosDocumentosFilterYear] = React.useState('');
+    const [otrosDocumentosFilterMonth, setOtrosDocumentosFilterMonth] = React.useState('');
     const [showComprasUploadForm, setShowComprasUploadForm] = React.useState(false);
 
     // Upload Compras Form
@@ -578,6 +584,12 @@ const CompanyDashboard = () => {
     const [uploadVentasMonth, setUploadVentasMonth] = React.useState('');
     const [uploadVentasFiles, setUploadVentasFiles] = React.useState([]);
 
+    // Upload Otros Documentos Form
+    const [otrosDocumentosCategory, setOtrosDocumentosCategory] = React.useState(null); // 'notificaciones', 'constitucion', 'varios'
+    const [uploadOtrosDocumentosYear, setUploadOtrosDocumentosYear] = React.useState('');
+    const [uploadOtrosDocumentosMonth, setUploadOtrosDocumentosMonth] = React.useState('');
+    const [uploadOtrosDocumentosFile, setUploadOtrosDocumentosFile] = React.useState(null);
+
     const handleVentasUpload = (e) => {
         const files = Array.from(e.target.files);
         if (files.length > 0) {
@@ -646,6 +658,46 @@ const CompanyDashboard = () => {
         }
     };
 
+    const handleOtrosDocumentosUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setUploadOtrosDocumentosFile(file);
+        }
+    };
+
+    const handleSaveOtrosDocumentos = () => {
+        if (!uploadOtrosDocumentosYear || !uploadOtrosDocumentosMonth || !uploadOtrosDocumentosFile) {
+            alert('Por favor complete todos los campos');
+            return;
+        }
+
+        const newDoc = {
+            id: Date.now(),
+            year: uploadOtrosDocumentosYear,
+            month: uploadOtrosDocumentosMonth,
+            url: URL.createObjectURL(uploadOtrosDocumentosFile),
+            name: uploadOtrosDocumentosFile.name,
+            type: 'Documento',
+            category: otrosDocumentosCategory // Save category
+        };
+
+        setOtrosDocumentosList(prev => [...prev, newDoc]);
+
+        setUploadOtrosDocumentosYear('');
+        setUploadOtrosDocumentosMonth('');
+        setUploadOtrosDocumentosFile(null);
+        setShowOtrosDocumentosUploadForm(false);
+
+        setOtrosDocumentosFilterYear(uploadOtrosDocumentosYear);
+        setOtrosDocumentosFilterMonth(uploadOtrosDocumentosMonth);
+    };
+
+    const handleDeleteOtrosDocumentos = (id) => {
+        if (window.confirm('¿Eliminar documento?')) {
+            setOtrosDocumentosList(prev => prev.filter(d => d.id !== id));
+        }
+    };
+
     const permissionConfig = {
         fichaRuc: { label: 'Ficha RUC', icon: FileText },
         declaracionesMensuales: { label: 'Declaraciones Mensuales', icon: Calendar },
@@ -654,9 +706,10 @@ const CompanyDashboard = () => {
         plame: { label: 'Plame', icon: Users },
         afpNet: { label: 'AFP NET', icon: ShieldCheck },
         bancos: { label: 'Bancos', icon: Landmark },
-        cajaChica: { label: 'Caja Chica', icon: Wallet },
+        cajaChica: { label: 'Control de Caja', icon: Wallet },
         compras: { label: 'Compras', icon: ShoppingCart },
         ventas: { label: 'Ventas', icon: TrendingUp },
+        otrosDocumentos: { label: 'Otros Documentos', icon: FileText },
     };
 
     if (!company) {
@@ -915,7 +968,7 @@ const CompanyDashboard = () => {
                             </div>
 
                             {/* Generic Upload Button - Only show if NOT monthly declarations, annual declarations, or Plame AND NOT CLIENT */}
-                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas'].includes(selectedPermission) && !isClient && (
+                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas', 'otrosDocumentos'].includes(selectedPermission) && !isClient && (
                                 <div>
                                     <input
                                         type="file"
@@ -2711,7 +2764,7 @@ const CompanyDashboard = () => {
                                                     return (
                                                         <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
                                                             <FileSpreadsheet size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
-                                                            <p>No se encontraron documentos de Caja Chica.</p>
+                                                            <p>No se encontraron documentos de Control de Caja.</p>
                                                         </div>
                                                     );
                                                 }
@@ -2736,12 +2789,12 @@ const CompanyDashboard = () => {
                                             }}
                                         >
                                             <Upload size={20} />
-                                            Subir Excel de Caja Chica
+                                            Subir Excel de Control de Caja
                                         </button>
                                     </div>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Excel de Caja chica</h3>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Excel de Control de Caja</h3>
 
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                             <div>
@@ -2785,7 +2838,7 @@ const CompanyDashboard = () => {
                                                         color: uploadCajaChicaType === 'Control de Caja Chica' ? 'var(--color-aj-red)' : '#555'
                                                     }}
                                                 >
-                                                    Control de Caja Chica
+                                                    Control de Caja
                                                 </button>
                                                 {!isClient && (
                                                     <button
@@ -3287,6 +3340,326 @@ const CompanyDashboard = () => {
                                                 Subir
                                             </button>
                                         </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : selectedPermission === 'otrosDocumentos' ? (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {!otrosDocumentosCategory ? (
+                                    /* Category Selection View */
+                                    /* Category Selection View */
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
+                                        {/* Row 1: Notificaciones and Varios */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            {[
+                                                { id: 'notificaciones', label: 'Notificaciones SUNAT', icon: FileText },
+                                                { id: 'varios', label: 'Documentos Varios', icon: FileText }
+                                            ].map(cat => (
+                                                <div
+                                                    key={cat.id}
+                                                    onClick={() => setOtrosDocumentosCategory(cat.id)}
+                                                    style={{
+                                                        backgroundColor: 'white',
+                                                        padding: '25px',
+                                                        borderRadius: '12px',
+                                                        border: '1px solid #e5e7eb',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        gap: '15px',
+                                                        textAlign: 'center',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+                                                    }}
+                                                    onMouseOver={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                        e.currentTarget.style.borderColor = 'var(--color-aj-red)';
+                                                        e.currentTarget.style.boxShadow = '0 5px 15px rgba(220, 38, 38, 0.1)';
+                                                    }}
+                                                    onMouseOut={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.borderColor = '#e5e7eb';
+                                                        e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        backgroundColor: '#fff1f2',
+                                                        padding: '15px',
+                                                        borderRadius: '50%',
+                                                        color: 'var(--color-aj-red)'
+                                                    }}>
+                                                        <cat.icon size={32} />
+                                                    </div>
+                                                    <span style={{ fontWeight: '600', fontSize: '1.1rem', color: '#1f2937' }}>{cat.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Row 2: Constitucion (Centered) */}
+                                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                            <div
+                                                onClick={() => setOtrosDocumentosCategory('constitucion')}
+                                                style={{
+                                                    backgroundColor: 'white',
+                                                    padding: '25px',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid #e5e7eb',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    gap: '15px',
+                                                    textAlign: 'center',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                                                    width: '50%' // Optional: make it same width as others or just centered
+                                                }}
+                                                onMouseOver={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                                    e.currentTarget.style.borderColor = 'var(--color-aj-red)';
+                                                    e.currentTarget.style.boxShadow = '0 5px 15px rgba(220, 38, 38, 0.1)';
+                                                }}
+                                                onMouseOut={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.borderColor = '#e5e7eb';
+                                                    e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
+                                                }}
+                                            >
+                                                <div style={{
+                                                    backgroundColor: '#fff1f2',
+                                                    padding: '15px',
+                                                    borderRadius: '50%',
+                                                    color: 'var(--color-aj-red)'
+                                                }}>
+                                                    <FileBarChart size={32} />
+                                                </div>
+                                                <span style={{ fontWeight: '600', fontSize: '1.1rem', color: '#1f2937' }}>Documentos de Constitucion de empresas</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Detail View for Category */
+                                    <div>
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setOtrosDocumentosCategory(null);
+                                                    setShowOtrosDocumentosUploadForm(false);
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: '#666',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '5px',
+                                                    fontSize: '0.9rem',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                ← Volver a categorías
+                                            </button>
+                                            <h3 style={{ fontSize: '1.5rem', marginTop: '10px', color: 'var(--color-aj-black)' }}>
+                                                {otrosDocumentosCategory === 'notificaciones' ? 'Notificaciones SUNAT' :
+                                                    otrosDocumentosCategory === 'constitucion' ? 'Documentos de Constitucion' : 'Documentos Varios'}
+                                            </h3>
+                                        </div>
+
+                                        {!showOtrosDocumentosUploadForm ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                {/* Filters */}
+                                                <div style={{ display: 'flex', gap: '20px' }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                        <select
+                                                            value={otrosDocumentosFilterYear}
+                                                            onChange={(e) => {
+                                                                setOtrosDocumentosFilterYear(e.target.value);
+                                                                setOtrosDocumentosFilterMonth('');
+                                                            }}
+                                                            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                        >
+                                                            <option value="">Todos los años</option>
+                                                            {[...new Set(otrosDocumentosList.filter(d => d.category === otrosDocumentosCategory).map(d => d.year))].sort().reverse().map(y => (
+                                                                <option key={y} value={y}>{y}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                        <select
+                                                            value={otrosDocumentosFilterMonth}
+                                                            onChange={(e) => setOtrosDocumentosFilterMonth(e.target.value)}
+                                                            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                        >
+                                                            <option value="">Todos los meses</option>
+                                                            {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                                <option key={m} value={m}>{m}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                {/* List */}
+                                                <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                                    {(() => {
+                                                        const filteredDocs = otrosDocumentosList.filter(d =>
+                                                            d.category === otrosDocumentosCategory &&
+                                                            (!otrosDocumentosFilterYear || d.year === otrosDocumentosFilterYear) &&
+                                                            (!otrosDocumentosFilterMonth || d.month === otrosDocumentosFilterMonth)
+                                                        );
+
+                                                        if (filteredDocs.length > 0) {
+                                                            return (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                                    {filteredDocs.map(doc => (
+                                                                        <div
+                                                                            key={doc.id}
+                                                                            style={{
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '15px',
+                                                                                padding: '15px',
+                                                                                backgroundColor: 'white',
+                                                                                borderRadius: '8px',
+                                                                                border: '1px solid #e5e7eb'
+                                                                            }}
+                                                                        >
+                                                                            <div style={{
+                                                                                backgroundColor: '#eff6ff',
+                                                                                padding: '10px',
+                                                                                borderRadius: '8px',
+                                                                                color: '#2563eb'
+                                                                            }}>
+                                                                                <FileText size={24} />
+                                                                            </div>
+                                                                            <div style={{ flex: 1 }}>
+                                                                                <div style={{ fontWeight: '600' }}>{doc.name}</div>
+                                                                                <div style={{ fontSize: '0.85rem', color: '#666' }}>{doc.month} {doc.year}</div>
+                                                                            </div>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                                <a
+                                                                                    href={doc.url}
+                                                                                    download={doc.name}
+                                                                                    style={{ color: '#666' }}
+                                                                                >
+                                                                                    <Download size={20} />
+                                                                                </a>
+                                                                                {!isClient && (
+                                                                                    <button
+                                                                                        onClick={() => handleDeleteOtrosDocumentos(doc.id)}
+                                                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                                    >
+                                                                                        <X size={20} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                                    <FileText size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                                    <p>No se encontraron documentos en esta categoría.</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    })()}
+                                                </div>
+
+                                                {(!isClient || otrosDocumentosCategory === 'constitucion') && (
+                                                    <button
+                                                        onClick={() => setShowOtrosDocumentosUploadForm(true)}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '15px',
+                                                            borderRadius: '6px',
+                                                            border: 'none',
+                                                            background: 'var(--color-aj-red)',
+                                                            color: 'white',
+                                                            cursor: 'pointer',
+                                                            fontWeight: 'bold',
+                                                            display: 'flex',
+                                                            justifyContent: 'center',
+                                                            alignItems: 'center',
+                                                            gap: '10px'
+                                                        }}
+                                                    >
+                                                        <Upload size={20} />
+                                                        Subir Documento
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                                <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Documento</h3>
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                        <select
+                                                            value={uploadOtrosDocumentosYear}
+                                                            onChange={(e) => setUploadOtrosDocumentosYear(e.target.value)}
+                                                            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                        >
+                                                            <option value="">Seleccionar Año</option>
+                                                            {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                        <select
+                                                            value={uploadOtrosDocumentosMonth}
+                                                            onChange={(e) => setUploadOtrosDocumentosMonth(e.target.value)}
+                                                            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                        >
+                                                            <option value="">Seleccionar Mes</option>
+                                                            {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                                    <input
+                                                        type="file"
+                                                        id="otros-upload"
+                                                        accept="application/pdf, .doc, .docx, .xls, .xlsx"
+                                                        style={{ display: 'none' }}
+                                                        onChange={handleOtrosDocumentosUpload}
+                                                    />
+                                                    <label htmlFor="otros-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                        <Upload size={32} color="var(--color-aj-red)" />
+                                                        <span style={{ fontWeight: '500', color: '#555' }}>
+                                                            {uploadOtrosDocumentosFile ? uploadOtrosDocumentosFile.name : 'Seleccionar Archivo'}
+                                                        </span>
+                                                    </label>
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowOtrosDocumentosUploadForm(false);
+                                                            setUploadOtrosDocumentosYear('');
+                                                            setUploadOtrosDocumentosMonth('');
+                                                            setUploadOtrosDocumentosFile(null);
+                                                        }}
+                                                        style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        onClick={handleSaveOtrosDocumentos}
+                                                        style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                                    >
+                                                        Subir
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
