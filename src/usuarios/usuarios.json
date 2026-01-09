@@ -1,8 +1,8 @@
 {
     "users": [
         {
-            "usuario": "ADMIN",
-            "contrasena": "12345",
+            "usuario": "AJADMINISTRADOR",
+            "contrasena": "197720",
             "role": "admin",
             "razonSocial": "Administrador"
         }

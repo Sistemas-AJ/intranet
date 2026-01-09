@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { User, LogOut, FileText, Calendar, CalendarDays, FileBarChart, Users, ShieldCheck, Landmark, Wallet, ShoppingCart, TrendingUp, Upload, Download, X } from 'lucide-react';
+import { User, LogOut, FileText, Calendar, CalendarDays, FileBarChart, Users, ShieldCheck, Landmark, Wallet, ShoppingCart, TrendingUp, Upload, Download, X, FileSpreadsheet } from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
 
@@ -14,6 +16,9 @@ const CompanyDashboard = () => {
     const [files, setFiles] = React.useState({});
 
     // State for Monthly Declarations
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const isClient = currentUser?.role === 'client';
+
     const [monthlyDeclarations, setMonthlyDeclarations] = React.useState([]);
     const [showUploadForm, setShowUploadForm] = React.useState(false);
     const [filterYear, setFilterYear] = React.useState('');
@@ -114,7 +119,8 @@ const CompanyDashboard = () => {
             month: uploadBoletasMonth,
             url: URL.createObjectURL(file), // Mock URL for preview
             name: file.name,
-            type: file.type
+            type: file.type,
+            file: file // Store actual file for zipping
         }));
 
         setBoletasList(prev => [...prev, ...newBoletas]);
@@ -128,6 +134,34 @@ const CompanyDashboard = () => {
         // Auto-select filter to show new items
         setBoletasFilterYear(uploadBoletasYear);
         setBoletasFilterMonth(uploadBoletasMonth);
+    };
+
+    const handleDownloadBoletasZip = async () => {
+        const filteredBoletas = boletasList.filter(b =>
+            (!boletasFilterYear || b.year === boletasFilterYear) &&
+            (!boletasFilterMonth || b.month === boletasFilterMonth)
+        );
+
+        if (filteredBoletas.length === 0) {
+            alert('No hay boletas para descargar con el filtro seleccionado.');
+            return;
+        }
+
+        const zip = new JSZip();
+
+        filteredBoletas.forEach(item => {
+            if (item.file) {
+                zip.file(item.name, item.file);
+            }
+        });
+
+        try {
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, `boletas_${boletasFilterMonth || 'todos'}_${boletasFilterYear || 'todos'}.zip`);
+        } catch (error) {
+            console.error("Error creating zip:", error);
+            alert("Error al crear el archivo ZIP");
+        }
     };
 
     const handleDeleteBoleta = (id) => {
@@ -163,29 +197,30 @@ const CompanyDashboard = () => {
             id: Date.now() + Math.random(),
             year: uploadConstanciasYear,
             month: uploadConstanciasMonth,
-            url: URL.createObjectURL(file),
+            url: URL.createObjectURL(file), // Mock URL
             name: file.name,
             type: file.type
         }));
 
         setConstanciasList(prev => [...prev, ...newConstancias]);
 
-        // Reset and go back to list
+        // Reset
         setUploadConstanciasYear('');
         setUploadConstanciasMonth('');
         setUploadConstanciasFiles([]);
         setPlameView('constancias');
 
-        // Auto-select filter to show new items
         setConstanciasFilterYear(uploadConstanciasYear);
         setConstanciasFilterMonth(uploadConstanciasMonth);
     };
 
     const handleDeleteConstancia = (id) => {
-        if (window.confirm('¿Estás seguro de eliminar esta constancia?')) {
+        if (window.confirm('¿Eliminar constancia?')) {
             setConstanciasList(prev => prev.filter(c => c.id !== id));
         }
     };
+
+
 
     // State for Plame - NPS
     const [npsList, setNpsList] = React.useState([]);
@@ -390,8 +425,225 @@ const CompanyDashboard = () => {
     }, [ruc]);
 
     const handleLogout = () => {
-        // localStorage.removeItem('currentUser'); // Optional: depend on desired behavior
-        navigate('/dashboard'); // Go back to main dashboard instead of logging out completely
+        if (isClient) {
+            localStorage.removeItem('currentUser');
+            navigate('/');
+        } else {
+            navigate('/dashboard');
+        }
+    };
+
+    // State for Caja Chica
+    const [cajaChicaList, setCajaChicaList] = React.useState([]);
+    const [cajaChicaFilterYear, setCajaChicaFilterYear] = React.useState('');
+    const [cajaChicaFilterMonth, setCajaChicaFilterMonth] = React.useState('');
+    const [showCajaChicaUploadForm, setShowCajaChicaUploadForm] = React.useState(false);
+
+    // Upload Caja Chica Form
+    const [uploadCajaChicaYear, setUploadCajaChicaYear] = React.useState('');
+    const [uploadCajaChicaMonth, setUploadCajaChicaMonth] = React.useState('');
+    const [uploadCajaChicaType, setUploadCajaChicaType] = React.useState(''); // 'Control de Caja Chica' | 'Arqueo de Caja'
+    const [uploadCajaChicaFile, setUploadCajaChicaFile] = React.useState(null);
+
+    const handleCajaChicaUpload = (e) => {
+        if (e.target.files[0]) setUploadCajaChicaFile(e.target.files[0]);
+    };
+
+    const handleSaveCajaChica = () => {
+        if (!uploadCajaChicaYear || !uploadCajaChicaMonth || !uploadCajaChicaType || !uploadCajaChicaFile) {
+            alert('Por favor complete todos los campos');
+            return;
+        }
+
+        const newCaja = {
+            id: Date.now(),
+            year: uploadCajaChicaYear,
+            month: uploadCajaChicaMonth,
+            type: uploadCajaChicaType,
+            url: URL.createObjectURL(uploadCajaChicaFile),
+            name: uploadCajaChicaFile.name
+        };
+
+        setCajaChicaList(prev => [...prev, newCaja]);
+
+        // Reset
+        setUploadCajaChicaYear('');
+        setUploadCajaChicaMonth('');
+        setUploadCajaChicaType('');
+        setUploadCajaChicaFile(null);
+        setShowCajaChicaUploadForm(false);
+
+        // Auto-select filter
+        setCajaChicaFilterYear(uploadCajaChicaYear);
+        setCajaChicaFilterMonth(uploadCajaChicaMonth);
+    };
+
+    const handleDeleteCajaChica = (id) => {
+        if (window.confirm('¿Eliminar documento de Caja Chica?')) {
+            setCajaChicaList(prev => prev.filter(c => c.id !== id));
+        }
+    };
+
+    // State for Compras
+    const [comprasList, setComprasList] = React.useState([]);
+    const [comprasFilterYear, setComprasFilterYear] = React.useState('');
+    const [comprasFilterMonth, setComprasFilterMonth] = React.useState('');
+    const [showComprasUploadForm, setShowComprasUploadForm] = React.useState(false);
+
+    // Upload Compras Form
+    const [uploadComprasYear, setUploadComprasYear] = React.useState('');
+    const [uploadComprasMonth, setUploadComprasMonth] = React.useState('');
+    const [uploadComprasFiles, setUploadComprasFiles] = React.useState([]);
+
+    const handleComprasUpload = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            setUploadComprasFiles(prev => [...prev, ...files]);
+        }
+    };
+
+    const handleSaveCompras = () => {
+        if (!uploadComprasYear || !uploadComprasMonth || uploadComprasFiles.length === 0) {
+            alert('Por favor complete todos los campos y seleccione al menos un archivo');
+            return;
+        }
+
+        const newCompras = uploadComprasFiles.map(file => ({
+            id: Date.now() + Math.random(),
+            year: uploadComprasYear,
+            month: uploadComprasMonth,
+            url: URL.createObjectURL(file), // Mock URL
+            name: file.name,
+            file: file // Store actual file for zipping
+        }));
+
+        setComprasList(prev => [...prev, ...newCompras]);
+
+        // Reset
+        setUploadComprasYear('');
+        setUploadComprasMonth('');
+        setUploadComprasFiles([]);
+        setShowComprasUploadForm(false);
+
+        // Auto-select filter
+        setComprasFilterYear(uploadComprasYear);
+        setComprasFilterMonth(uploadComprasMonth);
+    };
+
+    const handleDeleteCompras = (id) => {
+        if (window.confirm('¿Eliminar comprobante?')) {
+            setComprasList(prev => prev.filter(c => c.id !== id));
+        }
+    };
+
+    const handleDownloadComprasZip = async () => {
+        const filteredCompras = comprasList.filter(c =>
+            (!comprasFilterYear || c.year === comprasFilterYear) &&
+            (!comprasFilterMonth || c.month === comprasFilterMonth)
+        );
+
+        if (filteredCompras.length === 0) {
+            alert('No hay comprobantes para descargar con el filtro seleccionado.');
+            return;
+        }
+
+        const zip = new JSZip();
+
+        // Add files to zip
+        // Since we are using mock URLs for preview strings, strictly speaking we can't fetch them back easily if they were real URLs.
+        // But here we stored the 'file' object in handleSaveCompras.
+        filteredCompras.forEach(item => {
+            if (item.file) {
+                zip.file(item.name, item.file);
+            }
+        });
+
+        try {
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, `compras_${comprasFilterMonth || 'todos'}_${comprasFilterYear || 'todos'}.zip`);
+        } catch (error) {
+            console.error("Error creating zip:", error);
+            alert("Error al crear el archivo ZIP");
+        }
+    };
+
+    // State for Ventas
+    const [ventasList, setVentasList] = React.useState([]);
+    const [ventasFilterYear, setVentasFilterYear] = React.useState('');
+    const [ventasFilterMonth, setVentasFilterMonth] = React.useState('');
+    const [showVentasUploadForm, setShowVentasUploadForm] = React.useState(false);
+
+    // Upload Ventas Form
+    const [uploadVentasYear, setUploadVentasYear] = React.useState('');
+    const [uploadVentasMonth, setUploadVentasMonth] = React.useState('');
+    const [uploadVentasFiles, setUploadVentasFiles] = React.useState([]);
+
+    const handleVentasUpload = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            setUploadVentasFiles(prev => [...prev, ...files]);
+        }
+    };
+
+    const handleSaveVentas = () => {
+        if (!uploadVentasYear || !uploadVentasMonth || uploadVentasFiles.length === 0) {
+            alert('Por favor complete todos los campos y seleccione al menos un archivo');
+            return;
+        }
+
+        const newVentas = uploadVentasFiles.map(file => ({
+            id: Date.now() + Math.random(),
+            year: uploadVentasYear,
+            month: uploadVentasMonth,
+            url: URL.createObjectURL(file), // Mock URL
+            name: file.name,
+            file: file // Store actual file for zipping
+        }));
+
+        setVentasList(prev => [...prev, ...newVentas]);
+
+        setUploadVentasYear('');
+        setUploadVentasMonth('');
+        setUploadVentasFiles([]);
+        setShowVentasUploadForm(false);
+
+        // Auto-select filter
+        setVentasFilterYear(uploadVentasYear);
+        setVentasFilterMonth(uploadVentasMonth);
+    };
+
+    const handleDeleteVentas = (id) => {
+        if (window.confirm('¿Eliminar comprobante?')) {
+            setVentasList(prev => prev.filter(c => c.id !== id));
+        }
+    };
+
+    const handleDownloadVentasZip = async () => {
+        const filteredVentas = ventasList.filter(v =>
+            (!ventasFilterYear || v.year === ventasFilterYear) &&
+            (!ventasFilterMonth || v.month === ventasFilterMonth)
+        );
+
+        if (filteredVentas.length === 0) {
+            alert('No hay comprobantes para descargar con el filtro seleccionado.');
+            return;
+        }
+
+        const zip = new JSZip();
+
+        filteredVentas.forEach(item => {
+            if (item.file) {
+                zip.file(item.name, item.file);
+            }
+        });
+
+        try {
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, `ventas_${ventasFilterMonth || 'todos'}_${ventasFilterYear || 'todos'}.zip`);
+        } catch (error) {
+            console.error("Error creating zip:", error);
+            alert("Error al crear el archivo ZIP");
+        }
     };
 
     const permissionConfig = {
@@ -466,7 +718,9 @@ const CompanyDashboard = () => {
                         }}>
                             <User size={20} />
                         </div>
-                        <span style={{ fontWeight: '500' }}>Administrador</span>
+                        <span style={{ fontWeight: '500' }}>
+                            {isClient ? (currentUser.razonSocial || currentUser.usuario) : 'Administrador'}
+                        </span>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -493,7 +747,7 @@ const CompanyDashboard = () => {
                         }}
                     >
                         <LogOut size={16} />
-                        <span>Volver</span>
+                        <span>{isClient ? 'Cerrar Sesión' : 'Volver'}</span>
                     </button>
                 </div>
             </header>
@@ -620,7 +874,11 @@ const CompanyDashboard = () => {
                         width: '90%',
                         maxWidth: '600px',
                         position: 'relative',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                        maxHeight: '90vh', // Limit height
+                        overflowY: 'auto', // Enable scroll
+                        display: 'flex', // Flex layout
+                        flexDirection: 'column' // Column direction
                     }} onClick={(e) => e.stopPropagation()}>
 
                         <button
@@ -656,8 +914,8 @@ const CompanyDashboard = () => {
                                 </h2>
                             </div>
 
-                            {/* Generic Upload Button - Only show if NOT monthly declarations, annual declarations, or Plame */}
-                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos'].includes(selectedPermission) && (
+                            {/* Generic Upload Button - Only show if NOT monthly declarations, annual declarations, or Plame AND NOT CLIENT */}
+                            {!['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas'].includes(selectedPermission) && !isClient && (
                                 <div>
                                     <input
                                         type="file"
@@ -763,7 +1021,10 @@ const CompanyDashboard = () => {
                                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
                                                 <select
                                                     value={filterYear}
-                                                    onChange={(e) => setFilterYear(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setFilterYear(e.target.value);
+                                                        setFilterMonth('');
+                                                    }}
                                                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                 >
                                                     <option value="">Todos los años</option>
@@ -842,30 +1103,32 @@ const CompanyDashboard = () => {
                                                                         <div style={{ color: '#666' }}>
                                                                             <Download size={20} />
                                                                         </div>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                handleDeleteDeclaration(decl.id);
-                                                                            }}
-                                                                            style={{
-                                                                                background: 'none',
-                                                                                border: 'none',
-                                                                                cursor: 'pointer',
-                                                                                color: '#ef4444',
-                                                                                padding: '4px',
-                                                                                borderRadius: '4px',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                transition: 'background-color 0.2s'
-                                                                            }}
-                                                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                                                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                                            title="Eliminar documento"
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    handleDeleteDeclaration(decl.id);
+                                                                                }}
+                                                                                style={{
+                                                                                    background: 'none',
+                                                                                    border: 'none',
+                                                                                    cursor: 'pointer',
+                                                                                    color: '#ef4444',
+                                                                                    padding: '4px',
+                                                                                    borderRadius: '4px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    transition: 'background-color 0.2s'
+                                                                                }}
+                                                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                                                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                                title="Eliminar documento"
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </a>
                                                             ))}
@@ -882,26 +1145,28 @@ const CompanyDashboard = () => {
                                             })()}
                                         </div>
 
-                                        <button
-                                            onClick={() => setShowUploadForm(true)}
-                                            style={{
-                                                width: '100%',
-                                                padding: '15px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                background: 'var(--color-aj-red)',
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                gap: '10px'
-                                            }}
-                                        >
-                                            <Upload size={20} />
-                                            Subir Declaración Mensual
-                                        </button>
+                                        {!isClient && (
+                                            <button
+                                                onClick={() => setShowUploadForm(true)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir Declaración Mensual
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1037,30 +1302,32 @@ const CompanyDashboard = () => {
                                                                         <div style={{ color: '#666' }}>
                                                                             <Download size={20} />
                                                                         </div>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                handleDeleteAnnualDeclaration(decl.id);
-                                                                            }}
-                                                                            style={{
-                                                                                background: 'none',
-                                                                                border: 'none',
-                                                                                cursor: 'pointer',
-                                                                                color: '#ef4444',
-                                                                                padding: '4px',
-                                                                                borderRadius: '4px',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                transition: 'background-color 0.2s'
-                                                                            }}
-                                                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                                                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                                            title="Eliminar documento"
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    handleDeleteAnnualDeclaration(decl.id);
+                                                                                }}
+                                                                                style={{
+                                                                                    background: 'none',
+                                                                                    border: 'none',
+                                                                                    cursor: 'pointer',
+                                                                                    color: '#ef4444',
+                                                                                    padding: '4px',
+                                                                                    borderRadius: '4px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    transition: 'background-color 0.2s'
+                                                                                }}
+                                                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                                                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                                title="Eliminar documento"
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </a>
                                                             ))}
@@ -1077,26 +1344,28 @@ const CompanyDashboard = () => {
                                             })()}
                                         </div>
 
-                                        <button
-                                            onClick={() => setShowAnnualUploadForm(true)}
-                                            style={{
-                                                width: '100%',
-                                                padding: '15px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                background: 'var(--color-aj-black)', /* Different Color for Annual */
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                gap: '10px'
-                                            }}
-                                        >
-                                            <Upload size={20} />
-                                            Subir Declaración Anual
-                                        </button>
+                                        {!isClient && (
+                                            <button
+                                                onClick={() => setShowAnnualUploadForm(true)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-black)', /* Different Color for Annual */
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir Declaración Anual
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1104,57 +1373,55 @@ const CompanyDashboard = () => {
                             /* Special UI for Plame */
                             <div style={{ minHeight: '300px', width: '100%' }}>
                                 {plameView === 'menu' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', height: '100%' }}>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', width: '100%', gap: '20px' }}>
-                                            {[
-                                                { label: 'Boletas de Pago', icon: FileText, action: () => setPlameView('boletas') },
-                                                { label: 'Constancias de Declaración', icon: ShieldCheck, action: () => setPlameView('constancias') },
-                                                { label: 'NPS', icon: FileBarChart, action: () => setPlameView('nps') }
-                                            ].map((item, index) => (
-                                                <button
-                                                    key={index}
-                                                    onClick={item.action}
-                                                    style={{
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        padding: '30px',
-                                                        backgroundColor: 'white',
-                                                        border: '1px solid #e5e7eb',
-                                                        borderRadius: '12px',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s',
-                                                        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                        gap: '15px',
-                                                        width: '250px', // Fixed width for consistency
-                                                        flex: '0 0 auto' // Prevent stretching
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.transform = 'translateY(-5px)';
-                                                        e.currentTarget.style.boxShadow = '0 10px 15px rgba(0,0,0,0.1)';
-                                                        e.currentTarget.style.borderColor = 'var(--color-aj-red)';
-                                                        e.currentTarget.style.color = 'var(--color-aj-red)';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.transform = 'none';
-                                                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
-                                                        e.currentTarget.style.borderColor = '#e5e7eb';
-                                                        e.currentTarget.style.color = 'inherit';
-                                                    }}
-                                                >
-                                                    <div style={{
-                                                        padding: '15px',
-                                                        backgroundColor: '#fff1f2',
-                                                        borderRadius: '50%',
-                                                        color: 'var(--color-aj-red)'
-                                                    }}>
-                                                        <item.icon size={32} />
-                                                    </div>
-                                                    <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.label}</span>
-                                                </button>
-                                            ))}
-                                        </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
+                                        {[
+                                            { label: 'Boletas de Pago', icon: FileText, action: () => setPlameView('boletas') },
+                                            { label: 'Constancias de Declaración', icon: ShieldCheck, action: () => setPlameView('constancias') },
+                                            { label: 'NPS', icon: FileBarChart, action: () => setPlameView('nps'), style: { gridColumn: '1 / -1', justifySelf: 'center', width: '50%' } }
+                                        ].map((item, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={item.action}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    padding: '30px',
+                                                    backgroundColor: 'white',
+                                                    border: '1px solid #e5e7eb',
+                                                    borderRadius: '12px',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                                    gap: '15px',
+                                                    width: item.style && item.style.width ? item.style.width : '100%',
+                                                    ...item.style
+                                                }}
+                                                onMouseOver={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(-5px)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 15px rgba(0,0,0,0.1)';
+                                                    e.currentTarget.style.borderColor = 'var(--color-aj-red)';
+                                                    e.currentTarget.style.color = 'var(--color-aj-red)';
+                                                }}
+                                                onMouseOut={(e) => {
+                                                    e.currentTarget.style.transform = 'none';
+                                                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+                                                    e.currentTarget.style.borderColor = '#e5e7eb';
+                                                    e.currentTarget.style.color = 'inherit';
+                                                }}
+                                            >
+                                                <div style={{
+                                                    padding: '15px',
+                                                    backgroundColor: '#fff1f2',
+                                                    borderRadius: '50%',
+                                                    color: 'var(--color-aj-red)'
+                                                }}>
+                                                    <item.icon size={32} />
+                                                </div>
+                                                <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.label}</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
 
@@ -1184,7 +1451,10 @@ const CompanyDashboard = () => {
                                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
                                                 <select
                                                     value={boletasFilterYear}
-                                                    onChange={(e) => setBoletasFilterYear(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setBoletasFilterYear(e.target.value);
+                                                        setBoletasFilterMonth('');
+                                                    }}
                                                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                 >
                                                     <option value="">Todos los años</option>
@@ -1252,12 +1522,14 @@ const CompanyDashboard = () => {
                                                                         >
                                                                             <Download size={20} />
                                                                         </a>
-                                                                        <button
-                                                                            onClick={() => handleDeleteBoleta(boleta.id)}
-                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteBoleta(boleta.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -1274,26 +1546,53 @@ const CompanyDashboard = () => {
                                             })()}
                                         </div>
 
-                                        <button
-                                            onClick={() => setPlameView('upload_boletas')}
-                                            style={{
-                                                width: '100%',
-                                                padding: '15px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                background: 'var(--color-aj-red)',
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                gap: '10px'
-                                            }}
-                                        >
-                                            <Upload size={20} />
-                                            Subir Boletas de Pago
-                                        </button>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <button
+                                                onClick={handleDownloadBoletasZip}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-black)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Download size={20} />
+                                                Descargas masivas
+                                            </button>
+                                        </div>
+
+
+
+                                        {!isClient && (
+                                            <button
+                                                onClick={() => setPlameView('upload_boletas')}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir Boletas de Pago
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
@@ -1340,7 +1639,7 @@ const CompanyDashboard = () => {
                                                 <span style={{ fontWeight: '500', color: '#555' }}>
                                                     {uploadBoletasFiles.length > 0
                                                         ? `${uploadBoletasFiles.length} archivo(s) seleccionado(s)`
-                                                        : 'Seleccionar PDF(s) de Boletas (Máximo varios)'}
+                                                        : 'Seleccionar PDF(s) de Boletas'}
                                                 </span>
                                             </label>
                                             {uploadBoletasFiles.length > 0 && (
@@ -1396,7 +1695,10 @@ const CompanyDashboard = () => {
                                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
                                                 <select
                                                     value={constanciasFilterYear}
-                                                    onChange={(e) => setConstanciasFilterYear(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setConstanciasFilterYear(e.target.value);
+                                                        setConstanciasFilterMonth('');
+                                                    }}
                                                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                 >
                                                     <option value="">Todos los años</option>
@@ -1464,12 +1766,14 @@ const CompanyDashboard = () => {
                                                                         >
                                                                             <Download size={20} />
                                                                         </a>
-                                                                        <button
-                                                                            onClick={() => handleDeleteConstancia(constancia.id)}
-                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteConstancia(constancia.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -1486,26 +1790,28 @@ const CompanyDashboard = () => {
                                             })()}
                                         </div>
 
-                                        <button
-                                            onClick={() => setPlameView('upload_constancias')}
-                                            style={{
-                                                width: '100%',
-                                                padding: '15px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                background: 'var(--color-aj-red)',
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                gap: '10px'
-                                            }}
-                                        >
-                                            <Upload size={20} />
-                                            Subir constancias
-                                        </button>
+                                        {!isClient && (
+                                            <button
+                                                onClick={() => setPlameView('upload_constancias')}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir constancias
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
@@ -1608,7 +1914,10 @@ const CompanyDashboard = () => {
                                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
                                                 <select
                                                     value={npsFilterYear}
-                                                    onChange={(e) => setNpsFilterYear(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setNpsFilterYear(e.target.value);
+                                                        setNpsFilterMonth('');
+                                                    }}
                                                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                 >
                                                     <option value="">Todos los años</option>
@@ -1676,12 +1985,14 @@ const CompanyDashboard = () => {
                                                                         >
                                                                             <Download size={20} />
                                                                         </a>
-                                                                        <button
-                                                                            onClick={() => handleDeleteNps(n.id)}
-                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteNps(n.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -1698,26 +2009,28 @@ const CompanyDashboard = () => {
                                             })()}
                                         </div>
 
-                                        <button
-                                            onClick={() => setPlameView('upload_nps')}
-                                            style={{
-                                                width: '100%',
-                                                padding: '15px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                background: 'var(--color-aj-red)',
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                gap: '10px'
-                                            }}
-                                        >
-                                            <Upload size={20} />
-                                            Subir los NPS
-                                        </button>
+                                        {!isClient && (
+                                            <button
+                                                onClick={() => setPlameView('upload_nps')}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir los NPS
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
@@ -1804,7 +2117,10 @@ const CompanyDashboard = () => {
                                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
                                                 <select
                                                     value={bancosFilterYear}
-                                                    onChange={(e) => setBancosFilterYear(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setBancosFilterYear(e.target.value);
+                                                        setBancosFilterMonth('');
+                                                    }}
                                                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                 >
                                                     <option value="">Todos los años</option>
@@ -1886,12 +2202,14 @@ const CompanyDashboard = () => {
                                                                         >
                                                                             <Download size={20} />
                                                                         </a>
-                                                                        <button
-                                                                            onClick={() => handleDeleteBancos(banco.id)}
-                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteBancos(banco.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -1977,21 +2295,23 @@ const CompanyDashboard = () => {
                                                 >
                                                     Extracto Bancario
                                                 </button>
-                                                <button
-                                                    onClick={() => setUploadBancosType('Conciliacion Bancaria')}
-                                                    style={{
-                                                        flex: 1,
-                                                        padding: '15px',
-                                                        borderRadius: '8px',
-                                                        border: `2px solid ${uploadBancosType === 'Conciliacion Bancaria' ? 'var(--color-aj-red)' : '#eee'}`,
-                                                        backgroundColor: uploadBancosType === 'Conciliacion Bancaria' ? '#fff1f2' : 'white',
-                                                        cursor: 'pointer',
-                                                        fontWeight: '600',
-                                                        color: uploadBancosType === 'Conciliacion Bancaria' ? 'var(--color-aj-red)' : '#555'
-                                                    }}
-                                                >
-                                                    Conciliación Bancaria
-                                                </button>
+                                                {!isClient && (
+                                                    <button
+                                                        onClick={() => setUploadBancosType('Conciliacion Bancaria')}
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: '15px',
+                                                            borderRadius: '8px',
+                                                            border: `2px solid ${uploadBancosType === 'Conciliacion Bancaria' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                            backgroundColor: uploadBancosType === 'Conciliacion Bancaria' ? '#fff1f2' : 'white',
+                                                            cursor: 'pointer',
+                                                            fontWeight: '600',
+                                                            color: uploadBancosType === 'Conciliacion Bancaria' ? 'var(--color-aj-red)' : '#555'
+                                                        }}
+                                                    >
+                                                        Conciliación Bancaria
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1999,14 +2319,14 @@ const CompanyDashboard = () => {
                                             <input
                                                 type="file"
                                                 id="bancos-upload"
-                                                accept="application/pdf"
+                                                accept=".pdf, .xlsx, .xls"
                                                 style={{ display: 'none' }}
                                                 onChange={handleBancosUpload}
                                             />
                                             <label htmlFor="bancos-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                                                 <Upload size={32} color="var(--color-aj-red)" />
                                                 <span style={{ fontWeight: '500', color: '#555' }}>
-                                                    {uploadBancosFile ? uploadBancosFile.name : 'Seleccionar PDF'}
+                                                    {uploadBancosFile ? uploadBancosFile.name : 'Seleccionar PDF o Excel'}
                                                 </span>
                                             </label>
                                         </div>
@@ -2044,7 +2364,10 @@ const CompanyDashboard = () => {
                                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
                                                 <select
                                                     value={afpFilterYear}
-                                                    onChange={(e) => setAfpFilterYear(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setAfpFilterYear(e.target.value);
+                                                        setAfpFilterMonth('');
+                                                    }}
                                                     style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                 >
                                                     <option value="">Todos los años</option>
@@ -2126,12 +2449,14 @@ const CompanyDashboard = () => {
                                                                         >
                                                                             <Download size={20} />
                                                                         </a>
-                                                                        <button
-                                                                            onClick={() => handleDeleteAfp(afp.id)}
-                                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
-                                                                        >
-                                                                            <X size={20} />
-                                                                        </button>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteAfp(afp.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -2148,26 +2473,28 @@ const CompanyDashboard = () => {
                                             })()}
                                         </div>
 
-                                        <button
-                                            onClick={() => setShowAfpUploadForm(true)}
-                                            style={{
-                                                width: '100%',
-                                                padding: '15px',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                background: 'var(--color-aj-red)',
-                                                color: 'white',
-                                                cursor: 'pointer',
-                                                fontWeight: 'bold',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                gap: '10px'
-                                            }}
-                                        >
-                                            <Upload size={20} />
-                                            Subir Documentación de AFP NET
-                                        </button>
+                                        {!isClient && (
+                                            <button
+                                                onClick={() => setShowAfpUploadForm(true)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir Documentación de AFP NET
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -2272,6 +2599,697 @@ const CompanyDashboard = () => {
                                     </div>
                                 )}
                             </div>
+                        ) : selectedPermission === 'cajaChica' ? (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {!showCajaChicaUploadForm ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={cajaChicaFilterYear}
+                                                    onChange={(e) => {
+                                                        setCajaChicaFilterYear(e.target.value);
+                                                        setCajaChicaFilterMonth('');
+                                                    }}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(cajaChicaList.map(c => c.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={cajaChicaFilterMonth}
+                                                    onChange={(e) => setCajaChicaFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredCaja = cajaChicaList.filter(c =>
+                                                    (!cajaChicaFilterYear || c.year === cajaChicaFilterYear) &&
+                                                    (!cajaChicaFilterMonth || c.month === cajaChicaFilterMonth)
+                                                );
+
+                                                if (filteredCaja.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredCaja.map(caja => (
+                                                                <div
+                                                                    key={caja.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <FileSpreadsheet size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                                                                            <span style={{ fontWeight: '600' }}>{caja.name}</span>
+                                                                            <span style={{
+                                                                                fontSize: '0.75rem',
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '12px',
+                                                                                backgroundColor: caja.type === 'Control de Caja Chica' ? '#dbeafe' : '#fce7f3',
+                                                                                color: caja.type === 'Control de Caja Chica' ? '#1e40af' : '#9d174d',
+                                                                                fontWeight: '600',
+                                                                                border: '1px solid',
+                                                                                borderColor: caja.type === 'Control de Caja Chica' ? '#bfdbfe' : '#fbcfe8'
+                                                                            }}>
+                                                                                {caja.type}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{caja.month} {caja.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={caja.url}
+                                                                            download={caja.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteCajaChica(caja.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <FileSpreadsheet size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron documentos de Caja Chica.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setShowCajaChicaUploadForm(true)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '15px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: 'var(--color-aj-red)',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 'bold',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                gap: '10px'
+                                            }}
+                                        >
+                                            <Upload size={20} />
+                                            Subir Excel de Caja Chica
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Excel de Caja chica</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadCajaChicaYear}
+                                                    onChange={(e) => setUploadCajaChicaYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadCajaChicaMonth}
+                                                    onChange={(e) => setUploadCajaChicaMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Doc Type Selection */}
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '500' }}>Tipo de Documento</label>
+                                            <div style={{ display: 'flex', gap: '20px' }}>
+                                                <button
+                                                    onClick={() => setUploadCajaChicaType('Control de Caja Chica')}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '15px',
+                                                        borderRadius: '8px',
+                                                        border: `2px solid ${uploadCajaChicaType === 'Control de Caja Chica' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                        backgroundColor: uploadCajaChicaType === 'Control de Caja Chica' ? '#fff1f2' : 'white',
+                                                        cursor: 'pointer',
+                                                        fontWeight: '600',
+                                                        color: uploadCajaChicaType === 'Control de Caja Chica' ? 'var(--color-aj-red)' : '#555'
+                                                    }}
+                                                >
+                                                    Control de Caja Chica
+                                                </button>
+                                                {!isClient && (
+                                                    <button
+                                                        onClick={() => setUploadCajaChicaType('Arqueo de Caja')}
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: '15px',
+                                                            borderRadius: '8px',
+                                                            border: `2px solid ${uploadCajaChicaType === 'Arqueo de Caja' ? 'var(--color-aj-red)' : '#eee'}`,
+                                                            backgroundColor: uploadCajaChicaType === 'Arqueo de Caja' ? '#fff1f2' : 'white',
+                                                            cursor: 'pointer',
+                                                            fontWeight: '600',
+                                                            color: uploadCajaChicaType === 'Arqueo de Caja' ? 'var(--color-aj-red)' : '#555'
+                                                        }}
+                                                    >
+                                                        Arqueo de Caja
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="caja-upload"
+                                                accept=".xlsx, .xls"
+                                                style={{ display: 'none' }}
+                                                onChange={handleCajaChicaUpload}
+                                            />
+                                            <label htmlFor="caja-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadCajaChicaFile ? uploadCajaChicaFile.name : 'Seleccionar Excel'}
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setShowCajaChicaUploadForm(false);
+                                                    setUploadCajaChicaType('');
+                                                    setUploadCajaChicaFile(null);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveCajaChica}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : selectedPermission === 'compras' ? (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {!showComprasUploadForm ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={comprasFilterYear}
+                                                    onChange={(e) => {
+                                                        setComprasFilterYear(e.target.value);
+                                                        setComprasFilterMonth('');
+                                                    }}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(comprasList.map(c => c.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={comprasFilterMonth}
+                                                    onChange={(e) => setComprasFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredCompras = comprasList.filter(c =>
+                                                    (!comprasFilterYear || c.year === comprasFilterYear) &&
+                                                    (!comprasFilterMonth || c.month === comprasFilterMonth)
+                                                );
+
+                                                if (filteredCompras.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredCompras.map(compra => (
+                                                                <div
+                                                                    key={compra.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <ShoppingCart size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ fontWeight: '600' }}>{compra.name}</div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{compra.month} {compra.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={compra.url}
+                                                                            download={compra.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteCompras(compra.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <ShoppingCart size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron comprobantes de compras.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        {/* Buttons */}
+                                        <div>
+                                            <button
+                                                onClick={handleDownloadComprasZip}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-black)', // Updated to black
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    marginBottom: '10px'
+                                                }}
+                                            >
+                                                <Download size={20} />
+                                                Descargas masivas
+                                            </button>
+                                            <button
+                                                onClick={() => setShowComprasUploadForm(true)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir compras
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Comprobantes de Compras</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadComprasYear}
+                                                    onChange={(e) => setUploadComprasYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadComprasMonth}
+                                                    onChange={(e) => setUploadComprasMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="compras-upload"
+                                                accept="application/pdf"
+                                                multiple
+                                                style={{ display: 'none' }}
+                                                onChange={handleComprasUpload}
+                                            />
+                                            <label htmlFor="compras-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadComprasFiles.length > 0 ? `${uploadComprasFiles.length} archivos seleccionados` : 'Seleccionar PDF(s) - Máximo 200'}
+                                                </span>
+                                            </label>
+                                            {uploadComprasFiles.length > 0 && (
+                                                <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666', maxHeight: '100px', overflowY: 'auto' }}>
+                                                    {uploadComprasFiles.map((f, i) => <div key={i}>{f.name}</div>)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setShowComprasUploadForm(false);
+                                                    setUploadComprasYear('');
+                                                    setUploadComprasMonth('');
+                                                    setUploadComprasFiles([]);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveCompras}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : selectedPermission === 'ventas' ? (
+                            <div style={{ minHeight: '300px', width: '100%' }}>
+                                {!showVentasUploadForm ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* Filters */}
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={ventasFilterYear}
+                                                    onChange={(e) => {
+                                                        setVentasFilterYear(e.target.value);
+                                                        setVentasFilterMonth('');
+                                                    }}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los años</option>
+                                                    {[...new Set(ventasList.map(v => v.year))].sort().reverse().map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={ventasFilterMonth}
+                                                    onChange={(e) => setVentasFilterMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Todos los meses</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* List */}
+                                        <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
+                                            {(() => {
+                                                const filteredVentas = ventasList.filter(v =>
+                                                    (!ventasFilterYear || v.year === ventasFilterYear) &&
+                                                    (!ventasFilterMonth || v.month === ventasFilterMonth)
+                                                );
+
+                                                if (filteredVentas.length > 0) {
+                                                    return (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {filteredVentas.map(venta => (
+                                                                <div
+                                                                    key={venta.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '15px',
+                                                                        padding: '15px',
+                                                                        backgroundColor: 'white',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid #e5e7eb'
+                                                                    }}
+                                                                >
+                                                                    <div style={{
+                                                                        backgroundColor: '#eff6ff',
+                                                                        padding: '10px',
+                                                                        borderRadius: '8px',
+                                                                        color: '#2563eb'
+                                                                    }}>
+                                                                        <TrendingUp size={24} />
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ fontWeight: '600' }}>{venta.name}</div>
+                                                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>{venta.month} {venta.year}</div>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <a
+                                                                            href={venta.url}
+                                                                            download={venta.name}
+                                                                            style={{ color: '#666' }}
+                                                                        >
+                                                                            <Download size={20} />
+                                                                        </a>
+                                                                        {!isClient && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteVentas(venta.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                                            >
+                                                                                <X size={20} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
+                                                            <TrendingUp size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
+                                                            <p>No se encontraron comprobantes de ventas.</p>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+
+                                        {/* Buttons */}
+                                        <div>
+                                            <button
+                                                onClick={handleDownloadVentasZip}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-black)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    marginBottom: '10px'
+                                                }}
+                                            >
+                                                <Download size={20} />
+                                                Descargas masivas
+                                            </button>
+                                            <button
+                                                onClick={() => setShowVentasUploadForm(true)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '15px',
+                                                    borderRadius: '6px',
+                                                    border: 'none',
+                                                    background: 'var(--color-aj-red)',
+                                                    color: 'white',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    gap: '10px'
+                                                }}
+                                            >
+                                                <Upload size={20} />
+                                                Subir ventas
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Subir Comprobantes de Ventas</h3>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                                                <select
+                                                    value={uploadVentasYear}
+                                                    onChange={(e) => setUploadVentasYear(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Año</option>
+                                                    {['2030', '2029', '2028', '2027', '2026', '2025', '2024', '2023'].map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                                <select
+                                                    value={uploadVentasMonth}
+                                                    onChange={(e) => setUploadVentasMonth(e.target.value)}
+                                                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                >
+                                                    <option value="">Seleccionar Mes</option>
+                                                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+                                            <input
+                                                type="file"
+                                                id="ventas-upload"
+                                                accept="application/pdf"
+                                                multiple
+                                                style={{ display: 'none' }}
+                                                onChange={handleVentasUpload}
+                                            />
+                                            <label htmlFor="ventas-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                                <Upload size={32} color="var(--color-aj-red)" />
+                                                <span style={{ fontWeight: '500', color: '#555' }}>
+                                                    {uploadVentasFiles.length > 0 ? `${uploadVentasFiles.length} archivos seleccionados` : 'Seleccionar PDF(s) - Máximo 200'}
+                                                </span>
+                                            </label>
+                                            {uploadVentasFiles.length > 0 && (
+                                                <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666', maxHeight: '100px', overflowY: 'auto' }}>
+                                                    {uploadVentasFiles.map((f, i) => <div key={i}>{f.name}</div>)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setShowVentasUploadForm(false);
+                                                    setUploadVentasYear('');
+                                                    setUploadVentasMonth('');
+                                                    setUploadVentasFiles([]);
+                                                }}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveVentas}
+                                                style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}
+                                            >
+                                                Subir
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             /* Generic UI for Other Permissions */
                             <div style={{ color: '#555', lineHeight: '1.6', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
@@ -2333,8 +3351,9 @@ const CompanyDashboard = () => {
                         )}
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

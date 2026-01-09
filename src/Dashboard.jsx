@@ -39,7 +39,7 @@ const Dashboard = () => {
         } else {
             // Create new company
             // Add role to company data for login purposes
-            const newCompany = { ...companyData, role: 'company' };
+            const newCompany = { ...companyData, role: 'client' };
             updatedCompanies = [...companies, newCompany];
         }
 

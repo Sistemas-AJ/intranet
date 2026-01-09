@@ -28,7 +28,7 @@ const Login = () => {
       if (user.role === 'admin') {
         navigate('/dashboard');
       } else {
-        navigate('/company');
+        navigate(`/company/${user.ruc}`);
       }
     } else {
       setError('Usuario o contraseña incorrectos');
