@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Menu, Search, SquarePen, Trash2, FilePenLine } from 'lucide-react';
 import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
 import CreateUserModal from './CreateUserModal';
+import seedUsers from './usuarios/usuarios.json';
 
 const Dashboard = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,6 +13,38 @@ const Dashboard = () => {
         const savedCompanies = localStorage.getItem('companies');
         return savedCompanies ? JSON.parse(savedCompanies) : [];
     });
+
+    // ── Mostrar todos los usuarios en la consola F12 al cargar ──────────────
+    useEffect(() => {
+        const allUsers = [...seedUsers.users, ...companies];
+        console.log('%c═══ USUARIOS REGISTRADOS ═══', 'color: #dc2626; font-weight: bold; font-size: 14px;');
+        console.table(allUsers.map(u => ({
+            Usuario: u.usuario,
+            Contraseña: u.contrasena,
+            Rol: u.role || 'client',
+            'Razón Social': u.razonSocial,
+            RUC: u.ruc || 'N/A'
+        })));
+        console.log(`%cTotal: ${allUsers.length} usuario(s)`, 'color: #059669; font-weight: bold;');
+    }, [companies]);
+
+    // ── Sincronizar carpetas de clientes al cargar ──────────────────────────
+    useEffect(() => {
+        if (companies.length > 0) {
+            fetch('/api/clientes/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ companies }),
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.created > 0) {
+                        console.log(`%c📁 ${data.created} carpeta(s) nueva(s) creada(s) en /clientes/`, 'color: #059669; font-weight: bold;');
+                    }
+                })
+                .catch(err => console.warn('No se pudo sincronizar carpetas:', err));
+        }
+    }, []); // Solo al montar
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
@@ -47,6 +80,21 @@ const Dashboard = () => {
         localStorage.setItem('companies', JSON.stringify(updatedCompanies));
         setIsModalOpen(false);
         setEditingCompany(null);
+
+        // Log para F12
+        console.log('%c✅ Usuario guardado:', 'color: #059669; font-weight: bold;', companyData);
+
+        // Crear/actualizar carpeta en el sistema de archivos
+        fetch('/api/clientes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(companyData),
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) console.log(`%c📁 Carpeta creada: ${data.folder}`, 'color: #059669; font-weight: bold;');
+            })
+            .catch(err => console.warn('No se pudo crear carpeta:', err));
     };
 
     const handleDeleteCompany = (ruc) => {
@@ -54,6 +102,14 @@ const Dashboard = () => {
             const updatedCompanies = companies.filter(company => company.ruc !== ruc);
             setCompanies(updatedCompanies);
             localStorage.setItem('companies', JSON.stringify(updatedCompanies));
+
+            // Eliminar carpeta del sistema de archivos
+            fetch(`/api/clientes?ruc=${ruc}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.deleted) console.log(`%c🗑️ Carpeta eliminada: ${data.deleted}`, 'color: #ef4444; font-weight: bold;');
+                })
+                .catch(err => console.warn('No se pudo eliminar carpeta:', err));
         }
     };
 

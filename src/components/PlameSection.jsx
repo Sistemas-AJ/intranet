@@ -7,12 +7,12 @@ import useDocumentSection from '../hooks/useDocumentSection';
  * Subcomponente para la sección PLAME.
  * Tiene su propia navegación interna: menú → boletas | constancias | nps
  */
-const PlameSection = ({ isClient }) => {
+const PlameSection = ({ isClient, ruc }) => {
     const [view, setView] = React.useState('menu'); // 'menu' | 'boletas' | 'constancias' | 'nps'
 
-    const boletas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'boletas' });
-    const constancias = useDocumentSection({ multiple: true, zipLabel: 'constancias' });
-    const nps = useDocumentSection({ multiple: true, zipLabel: 'nps' });
+    const boletas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'boletas', storageKey: `docs_${ruc}_plame_boletas` });
+    const constancias = useDocumentSection({ multiple: true, zipLabel: 'constancias', storageKey: `docs_${ruc}_plame_constancias` });
+    const nps = useDocumentSection({ multiple: true, zipLabel: 'nps', storageKey: `docs_${ruc}_plame_nps` });
 
     // Reset form state when navigating back to menu
     const goToMenu = () => {

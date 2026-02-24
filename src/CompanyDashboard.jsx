@@ -3,10 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     User, LogOut, FileText, Calendar, CalendarDays, FileBarChart,
     Users, ShieldCheck, Landmark, Wallet, ShoppingCart, TrendingUp,
-    Upload, Download, X
+    Upload, Download, X, FolderDown
 } from 'lucide-react';
 import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 import useDocumentSection from './hooks/useDocumentSection';
 import DocumentSection from './components/DocumentSection';
@@ -30,9 +32,12 @@ const permissionConfig = {
     otrosDocumentos: { label: 'Otros Documentos', icon: FileText },
 };
 
-// ─── Declaraciones Mensuales (single file, año+mes, with filter) ──────────────
-const DeclaracionesMensualesSection = ({ isClient }) => {
-    const hook = useDocumentSection({ multiple: false });
+// ─── Declaraciones Mensuales ──────────────────────────────────────────────────
+const DeclaracionesMensualesSection = ({ isClient, ruc }) => {
+    const hook = useDocumentSection({
+        multiple: false,
+        storageKey: `docs_${ruc}_declaracionesMensuales`,
+    });
     return (
         <DocumentSection
             hook={hook}
@@ -48,25 +53,53 @@ const DeclaracionesMensualesSection = ({ isClient }) => {
 };
 
 // ─── Declaraciones Anuales (sin mes) ─────────────────────────────────────────
-const DeclaracionesAnualesSection = ({ isClient }) => {
-    const [list, setList] = React.useState([]);
+const DeclaracionesAnualesSection = ({ isClient, ruc }) => {
+    const storageKey = `docs_${ruc}_declaracionesAnuales`;
+
+    const loadFromStorage = () => {
+        try {
+            const saved = localStorage.getItem(storageKey);
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    };
+
+    const [list, setList] = React.useState(loadFromStorage);
     const [filterYear, setFilterYear] = React.useState('');
     const [showForm, setShowForm] = React.useState(false);
     const [uploadYear, setUploadYear] = React.useState('');
     const [uploadFile, setUploadFile] = React.useState(null);
 
+    // Persistir en localStorage cuando cambia la lista
+    React.useEffect(() => {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(list));
+        } catch (e) {
+            console.error('Error guardando declaraciones anuales:', e);
+        }
+    }, [list, storageKey]);
+
     const availableYears = [...new Set(list.map(d => d.year))].sort().reverse();
     const filteredList = list.filter(d => !filterYear || d.year === filterYear);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!uploadYear || !uploadFile) { alert('Por favor complete todos los campos'); return; }
-        setList(prev => [...prev, {
-            id: Date.now(), year: uploadYear,
-            url: URL.createObjectURL(uploadFile),
-            name: uploadFile.name,
-        }]);
-        setFilterYear(uploadYear);
-        setUploadYear(''); setUploadFile(null); setShowForm(false);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setList(prev => [...prev, {
+                id: Date.now(), year: uploadYear,
+                url: e.target.result,
+                name: uploadFile.name,
+            }]);
+            setFilterYear(uploadYear);
+            setUploadYear(''); setUploadFile(null); setShowForm(false);
+        };
+        reader.readAsDataURL(uploadFile);
+    };
+
+    const handleDelete = (id) => {
+        if (window.confirm('¿Eliminar esta declaración?')) {
+            setList(prev => prev.filter(d => d.id !== id));
+        }
     };
 
     const select = { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' };
@@ -117,7 +150,7 @@ const DeclaracionesAnualesSection = ({ isClient }) => {
                                 </div>
                                 <Download size={20} style={{ color: '#666' }} />
                                 {!isClient && (
-                                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); if (window.confirm('¿Eliminar?')) setList(prev => prev.filter(d => d.id !== decl.id)); }}
+                                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(decl.id); }}
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
                                         <X size={20} />
                                     </button>
@@ -142,9 +175,12 @@ const DeclaracionesAnualesSection = ({ isClient }) => {
 };
 
 // ─── Otros Documentos (con categorías) ───────────────────────────────────────
-const OtrosDocumentosSection = ({ isClient }) => {
+const OtrosDocumentosSection = ({ isClient, ruc }) => {
     const [category, setCategory] = React.useState(null);
-    const hook = useDocumentSection({ multiple: false });
+    const hook = useDocumentSection({
+        multiple: false,
+        storageKey: category ? `docs_${ruc}_otrosDocumentos_${category}` : '',
+    });
 
     const CATEGORIES = [
         { id: 'notificaciones', label: 'Notificaciones SUNAT', icon: FileText },
@@ -195,7 +231,6 @@ const OtrosDocumentosSection = ({ isClient }) => {
 
     const catLabel = CATEGORIES.find(c => c.id === category)?.label;
 
-    // Override handleSave to inject category
     const hookWithCategory = {
         ...filteredByCategory,
         handleSave: handleSaveWithCategory,
@@ -234,15 +269,30 @@ const CompanyDashboard = () => {
 
     const [company, setCompany] = React.useState(null);
     const [selectedPermission, setSelectedPermission] = React.useState(null);
-    // Generic single-file sections (fichaRuc, reporteTributario)
-    const [files, setFiles] = React.useState({});
+
+    // Generic single-file sections (fichaRuc, reporteTributario) – persistidas en localStorage
+    const loadGenericFiles = () => {
+        try {
+            const saved = localStorage.getItem(`docs_${ruc}_genericFiles`);
+            return saved ? JSON.parse(saved) : {};
+        } catch { return {}; }
+    };
+    const [files, setFiles] = React.useState(loadGenericFiles);
+
+    React.useEffect(() => {
+        try {
+            localStorage.setItem(`docs_${ruc}_genericFiles`, JSON.stringify(files));
+        } catch (e) {
+            console.error('Error guardando archivos genéricos:', e);
+        }
+    }, [files, ruc]);
 
     // ── Hooks para secciones de documentos ──────────────────────────────────
-    const afpNet = useDocumentSection({ hasType: true });
-    const bancos = useDocumentSection({ hasType: true });
-    const cajaChica = useDocumentSection({ hasType: true });
-    const compras = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'compras' });
-    const ventas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'ventas' });
+    const afpNet = useDocumentSection({ hasType: true, storageKey: `docs_${ruc}_afpNet` });
+    const bancos = useDocumentSection({ hasType: true, storageKey: `docs_${ruc}_bancos` });
+    const cajaChica = useDocumentSection({ hasType: true, storageKey: `docs_${ruc}_cajaChica` });
+    const compras = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'compras', storageKey: `docs_${ruc}_compras` });
+    const ventas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'ventas', storageKey: `docs_${ruc}_ventas` });
 
     React.useEffect(() => {
         const saved = localStorage.getItem('companies');
@@ -257,10 +307,100 @@ const CompanyDashboard = () => {
         else navigate('/dashboard');
     };
 
+    // ── Descargar TODOS los documentos del cliente en ZIP organizado por carpetas ──
+    const [isDownloading, setIsDownloading] = React.useState(false);
+
+    const handleDownloadAllClientDocs = async () => {
+        setIsDownloading(true);
+        try {
+            const zip = new JSZip();
+            let totalFiles = 0;
+
+            // Mapeo de secciones a nombres de carpeta
+            const sectionFolders = {
+                declaracionesMensuales: 'Declaraciones Mensuales',
+                declaracionesAnuales: 'Declaraciones Anuales',
+                afpNet: 'AFP NET',
+                bancos: 'Bancos',
+                cajaChica: 'Control de Caja',
+                compras: 'Compras',
+                ventas: 'Ventas',
+                plame_boletas: 'Plame - Boletas de Pago',
+                plame_constancias: 'Plame - Constancias',
+                plame_nps: 'Plame - NPS',
+                otrosDocumentos_notificaciones: 'Otros Documentos - Notificaciones SUNAT',
+                otrosDocumentos_varios: 'Otros Documentos - Documentos Varios',
+                otrosDocumentos_constitucion: 'Otros Documentos - Constitucion',
+            };
+
+            // Recopilar documentos de cada sección desde localStorage
+            for (const [sectionKey, folderName] of Object.entries(sectionFolders)) {
+                const storageKey = `docs_${ruc}_${sectionKey}`;
+                try {
+                    const saved = localStorage.getItem(storageKey);
+                    if (saved) {
+                        const docs = JSON.parse(saved);
+                        for (const doc of docs) {
+                            if (doc.url && doc.name) {
+                                const response = await fetch(doc.url);
+                                const blob = await response.blob();
+                                const subFolder = doc.year ? `${folderName}/${doc.year}` : folderName;
+                                zip.file(`${subFolder}/${doc.name}`, blob);
+                                totalFiles++;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Error leyendo ${sectionKey}:`, e);
+                }
+            }
+
+            // Archivos genéricos (fichaRuc, reporteTributario)
+            const genericKey = `docs_${ruc}_genericFiles`;
+            try {
+                const savedGeneric = localStorage.getItem(genericKey);
+                if (savedGeneric) {
+                    const genericFiles = JSON.parse(savedGeneric);
+                    for (const [permKey, fileData] of Object.entries(genericFiles)) {
+                        if (fileData && fileData.url && fileData.name) {
+                            const folderName = permissionConfig[permKey]?.label || permKey;
+                            const response = await fetch(fileData.url);
+                            const blob = await response.blob();
+                            zip.file(`${folderName}/${fileData.name}`, blob);
+                            totalFiles++;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error leyendo archivos genéricos:', e);
+            }
+
+            if (totalFiles === 0) {
+                alert('No hay documentos guardados para este cliente.');
+                setIsDownloading(false);
+                return;
+            }
+
+            const content = await zip.generateAsync({ type: 'blob' });
+            const clientName = company?.razonSocial || ruc;
+            const safeName = clientName.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+            saveAs(content, `${safeName}_${ruc}_Documentos.zip`);
+            console.log(`%c📦 ZIP descargado: ${totalFiles} archivos de ${clientName}`, 'color: #059669; font-weight: bold;');
+        } catch (error) {
+            console.error('Error al generar ZIP:', error);
+            alert('Error al generar el archivo ZIP.');
+        }
+        setIsDownloading(false);
+    };
+
     const handleGenericFileUpload = (event) => {
         const file = event.target.files[0];
         if (file && selectedPermission) {
-            setFiles(prev => ({ ...prev, [selectedPermission]: { url: URL.createObjectURL(file), name: file.name } }));
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setFiles(prev => ({ ...prev, [selectedPermission]: { url: e.target.result, name: file.name } }));
+            };
+            reader.readAsDataURL(file);
         }
     };
 
@@ -275,11 +415,11 @@ const CompanyDashboard = () => {
     const renderModalContent = () => {
         switch (selectedPermission) {
             case 'declaracionesMensuales':
-                return <DeclaracionesMensualesSection isClient={isClient} />;
+                return <DeclaracionesMensualesSection isClient={isClient} ruc={ruc} />;
             case 'declaracionesAnuales':
-                return <DeclaracionesAnualesSection isClient={isClient} />;
+                return <DeclaracionesAnualesSection isClient={isClient} ruc={ruc} />;
             case 'plame':
-                return <PlameSection isClient={isClient} />;
+                return <PlameSection isClient={isClient} ruc={ruc} />;
             case 'afpNet':
                 return (
                     <DocumentSection
@@ -355,7 +495,7 @@ const CompanyDashboard = () => {
                     />
                 );
             case 'otrosDocumentos':
-                return <OtrosDocumentosSection isClient={isClient} />;
+                return <OtrosDocumentosSection isClient={isClient} ruc={ruc} />;
             default:
                 // Generic single-file section (Ficha RUC, Reporte Tributario, etc.)
                 return (
@@ -411,6 +551,25 @@ const CompanyDashboard = () => {
                         <LogOut size={16} />
                         <span>{isClient ? 'Cerrar Sesión' : 'Volver'}</span>
                     </button>
+                    {!isClient && (
+                        <button
+                            onClick={handleDownloadAllClientDocs}
+                            disabled={isDownloading}
+                            title="Descargar todos los documentos del cliente en ZIP organizado por carpetas"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                backgroundColor: '#059669', color: 'white',
+                                border: 'none', padding: '8px 15px', borderRadius: '4px',
+                                transition: 'all 0.2s', fontSize: '0.9rem', cursor: isDownloading ? 'wait' : 'pointer',
+                                opacity: isDownloading ? 0.7 : 1
+                            }}
+                            onMouseOver={e => { if (!isDownloading) e.currentTarget.style.backgroundColor = '#047857'; }}
+                            onMouseOut={e => { e.currentTarget.style.backgroundColor = '#059669'; }}
+                        >
+                            <FolderDown size={16} />
+                            <span>{isDownloading ? 'Descargando...' : 'Descargar Todo'}</span>
+                        </button>
+                    )}
                 </div>
             </header>
 

@@ -14,6 +14,20 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Mostrar todos los usuarios en F12 al cargar la página de login
+  React.useEffect(() => {
+    const localCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
+    const allUsers = [...seedUsers.users, ...localCompanies];
+    console.log('%c═══ CUENTAS DISPONIBLES (F12) ═══', 'color: #dc2626; font-weight: bold; font-size: 14px;');
+    console.table(allUsers.map(u => ({
+      Usuario: u.usuario,
+      Contraseña: u.contrasena,
+      Rol: u.role || 'client',
+      'Razón Social': u.razonSocial,
+      RUC: u.ruc || 'N/A'
+    })));
+  }, []);
+
   const handleLogin = (e) => {
     e.preventDefault();
 
