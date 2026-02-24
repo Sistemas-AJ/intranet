@@ -67,6 +67,7 @@ const DeclaracionesMensualesSection = ({ isClient, ruc, hook }) => {
             <DocumentSection
                 hook={hook}
                 isClient={isClient}
+                allowClientUpload={false}
                 allowClientDelete={false}
                 icon={FileText}
                 emptyMessage="No se encontraron declaraciones para los filtros seleccionados."
@@ -97,344 +98,20 @@ const DeclaracionesMensualesSection = ({ isClient, ruc, hook }) => {
 
 // ─── Declaraciones Anuales (sin mes) ─────────────────────────────────────────
 const DeclaracionesAnualesSection = ({ isClient, ruc, hook }) => {
-    const [expandedAnnualDoc, setExpandedAnnualDoc] = React.useState(null);
-    const [isDownloadingZip, setIsDownloadingZip] = React.useState(false);
-    const [successMsg, setSuccessMsg] = React.useState('');
-    const [itemToDelete, setItemToDelete] = React.useState(null);
-    const [tempToast, setTempToast] = React.useState('');
-
-    const { list, setList, showForm, setShowForm, uploadYear, setUploadYear, uploadFile, setUploadFile, handleUpload, setMetadata } = hook;
-
-    const handleSave = async (extraFields = {}) => {
-        if (!uploadYear || !uploadFile) {
-            alert('Por favor complete todos los campos');
-            return;
-        }
-        const base64Url = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(uploadFile);
-        });
-        const newItem = {
-            id: Date.now(),
-            year: uploadYear,
-            url: base64Url,
-            name: uploadFile.name,
-            uploadedBy: isClient ? 'client' : 'admin',
-            seenByClient: !isClient ? false : true,
-            seenByAdmin: isClient ? false : true,
-            ...extraFields
-        };
-        const exists = list.some(d => d.year === uploadYear);
-        if (exists) {
-            setList(prev => prev.map(d => d.year === uploadYear ? newItem : d));
-        } else {
-            setList(prev => [...prev, newItem]);
-        }
-
-        // Notification logic
-        if (isClient) {
-            setMetadata(prev => ({ ...prev, unreadForAdmin: true }));
-        } else {
-            setMetadata(prev => ({ ...prev, unreadForClient: true }));
-        }
-
-        setShowForm(false);
-        setUploadYear('');
-        setUploadFile(null);
-        setSuccessMsg('El archivo se subió correctamente');
-        setTimeout(() => setSuccessMsg(''), 3000);
-    };
-
-    const handleDelete = (id) => {
-        setList(prev => prev.filter(d => d.id !== id));
-        if (isClient) {
-            setMetadata(prev => ({ ...prev, unreadForAdmin: true }));
-        } else {
-            setMetadata(prev => ({ ...prev, unreadForClient: true }));
-        }
-    };
-
-    const filteredList = list.filter(d => !hook.filterYear || d.year === hook.filterYear);
-    const selectStyle = { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' };
-
-    const handleBulkDownload = async () => {
-        if (list.length === 0) { alert('No hay declaraciones para descargar.'); return; }
-        setIsDownloadingZip(true);
-        try {
-            const zip = new JSZip();
-            for (const decl of list) {
-                if (decl.url && decl.name && decl.year) {
-                    const folder = zip.folder(decl.year);
-                    const response = await fetch(decl.url);
-                    const blob = await response.blob();
-                    folder.file(decl.name, blob);
-                }
-            }
-            const content = await zip.generateAsync({ type: 'blob' });
-            saveAs(content, `Declaraciones_Anuales_${ruc}.zip`);
-        } catch (error) {
-            console.error('Error generando ZIP:', error);
-            alert('Error al generar el archivo ZIP.');
-        }
-        setIsDownloadingZip(false);
-    };
-
-    if (showForm) return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <h3 style={{ fontSize: '1.2rem' }}>Subir Declaración Anual</h3>
-            <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
-                <select value={uploadYear} onChange={e => setUploadYear(e.target.value)} style={selectStyle}>
-                    <option value="">Seleccionar Año</option>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-            </div>
-            <div style={{ border: '2px dashed #eee', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
-                <input type="file" id="annual-upload" accept="application/pdf" style={{ display: 'none' }} onChange={e => setUploadFile(e.target.files[0])} />
-                <label htmlFor="annual-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                    <Upload size={32} color="var(--color-aj-red)" />
-                    <span style={{ fontWeight: '500', color: '#555' }}>{uploadFile ? uploadFile.name : 'Seleccionar PDF de Declaración Anual'}</span>
-                </label>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowForm(false)} style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc', background: 'white', cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={() => handleSave()} style={{ padding: '10px 20px', borderRadius: '4px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer' }}>Guardar</button>
-            </div>
-        </div>
-    );
-
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Filtrar por Año</label>
-                <select value={hook.filterYear} onChange={e => hook.setFilterYear(e.target.value)} style={selectStyle}>
-                    <option value="">Todos los años</option>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-            </div>
-
-            <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflowY: 'auto', minHeight: '300px', maxHeight: '500px', padding: '10px' }}>
-                {filteredList.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {filteredList.map(decl => (
-                            <div key={decl.id}
-                                style={{
-                                    display: 'flex', alignItems: 'stretch', gap: '0',
-                                    backgroundColor: 'white', borderRadius: '8px',
-                                    border: '1px solid #e5e7eb', overflow: 'hidden'
-                                }}>
-                                {/* Preview thumbnail */}
-                                {decl.url && decl.name && /\.(pdf|png|jpe?g|gif|webp)$/i.test(decl.name) && (
-                                    <div
-                                        style={{
-                                            width: '120px', minHeight: '80px',
-                                            backgroundColor: '#f3f4f6', borderRight: '1px solid #e5e7eb',
-                                            position: 'relative', overflow: 'hidden', flexShrink: 0,
-                                            cursor: 'pointer'
-                                        }}
-                                        onClick={() => setExpandedAnnualDoc(decl)}
-                                        title="Ver vista previa"
-                                    >
-                                        {/\.(png|jpe?g|gif|webp)$/i.test(decl.name) ? (
-                                            <img src={decl.url} alt={decl.name}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        ) : (
-                                            <iframe src={decl.url} title={decl.name}
-                                                style={{ width: '200%', height: '200%', border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left', pointerEvents: 'none' }} />
-                                        )}
-                                    </div>
-                                )}
-                                {/* Info */}
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '15px', padding: '15px' }}>
-                                    <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '8px', color: '#2563eb' }}><FileText size={24} /></div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: '600' }}>{decl.name}</div>
-                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>Declaración Anual {decl.year}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '2px' }}>{decl.uploadedBy === 'client' ? 'Subido por Cliente' : 'Subido por AJ'}</div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <button
-                                            onClick={() => setExpandedAnnualDoc(decl)}
-                                            style={{
-                                                background: 'var(--color-aj-red)', border: 'none', cursor: 'pointer',
-                                                color: 'white', borderRadius: '6px', padding: '8px 12px',
-                                                display: 'flex', alignItems: 'center', gap: '6px',
-                                                fontSize: '0.8rem', fontWeight: '600', transition: 'background 0.2s'
-                                            }}
-                                            onMouseOver={e => e.currentTarget.style.background = '#b91c1c'}
-                                            onMouseOut={e => e.currentTarget.style.background = 'var(--color-aj-red)'}
-                                            title="Expandir vista previa"
-                                        >
-                                            <Maximize2 size={16} />
-                                            <span>Ver</span>
-                                        </button>
-                                        <a href={decl.url} download={decl.name} style={{ color: '#666', display: 'flex' }}>
-                                            <Download size={20} />
-                                        </a>
-                                        {!isClient && (
-                                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setItemToDelete(decl); }}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex' }}
-                                                onMouseOver={e => e.currentTarget.style.color = '#ef4444'}
-                                                onMouseOut={e => e.currentTarget.style.color = '#64748b'}
-                                                title="Eliminar">
-                                                <Trash2 size={20} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexDirection: 'column' }}>
-                        <FileText size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
-                        <p>No se encontraron declaraciones anuales.</p>
-                    </div>
-                )}
-            </div>
-            {!isClient && (
-                <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '15px', borderRadius: '6px', border: 'none', background: 'var(--color-aj-black)', color: 'white', cursor: 'pointer', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-                    <Upload size={20} /> Subir Declaración Anual
-                </button>
-            )}
-            {list.length > 0 && (
-                <button
-                    onClick={handleBulkDownload}
-                    disabled={isDownloadingZip}
-                    style={{
-                        width: '100%', padding: '15px', borderRadius: '6px', border: 'none',
-                        background: isDownloadingZip ? '#9ca3af' : 'var(--color-aj-red)',
-                        color: 'white', cursor: isDownloadingZip ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-                        transition: 'background 0.2s'
-                    }}
-                >
-                    <FolderDown size={20} />
-                    {isDownloadingZip ? 'Generando ZIP...' : 'Descarga Masiva'}
-                </button>
-            )}
-
-            {tempToast && (
-                <div style={{
-                    position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: '#333', color: 'white', padding: '10px 20px', borderRadius: '20px',
-                    fontSize: '0.9rem', zIndex: 1000, boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                }}>
-                    {tempToast}
-                </div>
-            )}
-
-            {/* Modal de Eliminación Personalizado */}
-            {itemToDelete && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 12100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '30px', maxWidth: '450px', width: '100%', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-                        <div style={{ backgroundColor: '#fee2e2', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#ef4444' }}>
-                            <Trash2 size={30} />
-                        </div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '15px', color: '#111' }}>Confirmar acción</h3>
-                        <p style={{ color: '#555', marginBottom: '25px', lineHeight: '1.6' }}>
-                            Estimado usuario, ¿Seguro que desea eliminar el comprobante <strong>{itemToDelete.name}</strong>?
-                        </p>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <button
-                                onClick={() => setItemToDelete(null)}
-                                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', background: 'white', fontWeight: '600', cursor: 'pointer' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={() => {
-                                    handleDelete(itemToDelete.id);
-                                    setItemToDelete(null);
-                                    setTempToast('Declaración eliminada');
-                                    setTimeout(() => setTempToast(''), 3000);
-                                }}
-                                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontWeight: '600', cursor: 'pointer' }}
-                            >
-                                Sí, eliminar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal de Vista Expandida */}
-            {expandedAnnualDoc && (
-                <div
-                    style={{
-                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 12000,
-                        display: 'flex', flexDirection: 'column'
-                    }}
-                    onClick={() => setExpandedAnnualDoc(null)}
-                >
-                    <div
-                        style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '15px 25px', backgroundColor: 'var(--color-aj-black)', color: 'white'
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <Eye size={20} />
-                            <span style={{ fontWeight: '600', fontSize: '1rem' }}>{expandedAnnualDoc.name}</span>
-                            <span style={{ opacity: 0.7, fontSize: '0.9rem' }}>— Año {expandedAnnualDoc.year}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <a
-                                href={expandedAnnualDoc.url} download={expandedAnnualDoc.name}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                    backgroundColor: 'var(--color-aj-red)', color: 'white',
-                                    padding: '8px 16px', borderRadius: '6px', textDecoration: 'none',
-                                    fontSize: '0.85rem', fontWeight: '600'
-                                }}
-                            >
-                                <Download size={16} /> Descargar
-                            </a>
-                            <button
-                                onClick={() => setExpandedAnnualDoc(null)}
-                                style={{
-                                    background: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
-                                    color: 'white', cursor: 'pointer', borderRadius: '6px',
-                                    padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px',
-                                    fontSize: '0.85rem'
-                                }}
-                            >
-                                <X size={16} /> Cerrar
-                            </button>
-                        </div>
-                    </div>
-                    <div
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/\.(png|jpe?g|gif|webp)$/i.test(expandedAnnualDoc.name) ? (
-                            <img src={expandedAnnualDoc.url} alt={expandedAnnualDoc.name}
-                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 30px rgba(0,0,0,0.4)' }} />
-                        ) : (
-                            <iframe
-                                src={expandedAnnualDoc.url} title={expandedAnnualDoc.name}
-                                style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px', boxShadow: '0 4px 30px rgba(0,0,0,0.4)', backgroundColor: 'white' }}
-                            />
-                        )}
-                    </div>
-                </div>
-            )}
-            {/* Notificación de éxito */}
-            {successMsg && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                    <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '40px 50px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#22c55e' }}>
-                            <Check size={40} />
-                        </div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#111', marginBottom: '8px' }}>{successMsg}</h3>
-                        <p style={{ color: '#888', fontSize: '0.9rem' }}>Este aviso se cerrará automáticamente</p>
-                    </div>
-                </div>
-            )}
-        </div>
+        <DocumentSection
+            hook={hook}
+            isClient={isClient}
+            allowClientUpload={false}
+            allowClientDelete={false}
+            icon={CalendarDays}
+            emptyMessage="No se encontraron declaraciones anuales."
+            uploadLabel="Subir Declaración Anual"
+            formTitle="Subir Nueva Declaración Anual"
+            deleteConfirm="¿Eliminar esta declaración?"
+            fileAccept="application/pdf"
+            hasType={false}
+        />
     );
 };
 
@@ -448,16 +125,6 @@ const OtrosDocumentosSection = ({ isClient, ruc, hooks }) => {
         { id: 'varios', label: 'Documentos Varios', icon: FileText },
         { id: 'constitucion', label: 'Documentos de Constitución de empresas', icon: FileBarChart, centered: true },
     ];
-
-    const filteredByCategory = {
-        ...hook,
-        filteredList: hook.filteredList.filter(d => d.category === category),
-        availableYears: [...new Set(hook.list.filter(d => d.category === category).map(d => d.year))].sort().reverse(),
-    };
-
-    const handleSaveWithCategory = () => {
-        hook.handleSave({ category });
-    };
 
     if (!category) {
         const pairs = CATEGORIES.filter(c => !c.centered);
@@ -492,11 +159,6 @@ const OtrosDocumentosSection = ({ isClient, ruc, hooks }) => {
 
     const catLabel = CATEGORIES.find(c => c.id === category)?.label;
 
-    const hookWithCategory = {
-        ...filteredByCategory,
-        handleSave: handleSaveWithCategory,
-    };
-
     return (
         <div>
             <div style={{ marginBottom: '20px' }}>
@@ -507,8 +169,10 @@ const OtrosDocumentosSection = ({ isClient, ruc, hooks }) => {
                 <h3 style={{ fontSize: '1.5rem', marginTop: '10px', color: 'var(--color-aj-black)' }}>{catLabel}</h3>
             </div>
             <DocumentSection
-                hook={hookWithCategory}
+                hook={hook}
                 isClient={isClient && category !== 'constitucion'}
+                allowClientUpload={category !== 'constitucion'}
+                allowClientDelete={false}
                 icon={FileText}
                 emptyMessage="No se encontraron documentos en esta categoría."
                 uploadLabel="Subir Documento"
@@ -521,118 +185,39 @@ const OtrosDocumentosSection = ({ isClient, ruc, hooks }) => {
 };
 
 // ─── Generic File Preview (Ficha RUC, Reporte Tributario) ─────────────────────
-const GenericFilePreview = ({ files, selectedPermission, isClient, onFileUpload }) => {
-    const [expanded, setExpanded] = React.useState(false);
-    const fileData = files[selectedPermission];
+const GenericFilePreview = ({ hook, isClient, label, allowClientUpload = false, allowClientDelete = false }) => {
+    const fileData = hook.list && hook.list[0]; // Mostrar el más reciente
 
     if (!fileData) {
         return (
-            <div style={{ color: '#555', lineHeight: '1.6', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', border: '2px dashed #eee', borderRadius: '8px', padding: '40px' }}>
-                    <FileText size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
-                    <p>No ha subido ningún documento para este permiso.</p>
-                    <p style={{ fontSize: '0.9rem' }}>Utilice el botón "Subir Archivo" para adjuntar un PDF.</p>
-                </div>
-            </div>
+            <DocumentSection
+                hook={hook}
+                isClient={isClient}
+                icon={FileText}
+                emptyMessage={`No hay ${label} subida.`}
+                uploadLabel={`Subir ${label}`}
+                formTitle={`Subir ${label}`}
+                deleteConfirm={`¿Eliminar ${label}?`}
+                allowClientUpload={allowClientUpload}
+                allowClientDelete={allowClientDelete}
+                fileAccept="application/pdf"
+            />
         );
     }
 
     return (
-        <div style={{ color: '#555', lineHeight: '1.6', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div style={{ flex: 1, backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', overflow: 'hidden', height: '500px' }}>
-                    {/\.(png|jpe?g|gif|webp)$/i.test(fileData.name) ? (
-                        <img src={fileData.url} alt={fileData.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    ) : (
-                        <iframe src={fileData.url} title="PDF Preview" style={{ width: '100%', height: '100%', border: 'none' }} />
-                    )}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                    <button
-                        onClick={() => setExpanded(true)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            backgroundColor: 'var(--color-aj-red)', color: 'white',
-                            padding: '10px 20px', borderRadius: '6px', border: 'none',
-                            fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer',
-                            transition: 'background 0.2s'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.backgroundColor = '#b91c1c'}
-                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--color-aj-red)'}
-                    >
-                        <Maximize2 size={18} /> Expandir
-                    </button>
-                    <a href={fileData.url} download={fileData.name}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--color-aj-black)', color: 'white', padding: '10px 20px', borderRadius: '6px', textDecoration: 'none', fontSize: '0.9rem' }}>
-                        <Download size={18} /> Descargar
-                    </a>
-                </div>
-            </div>
-
-            {/* Fullscreen expanded modal */}
-            {expanded && (
-                <div
-                    style={{
-                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex',
-                        flexDirection: 'column', zIndex: 9999
-                    }}
-                    onClick={() => setExpanded(false)}
-                >
-                    <div
-                        style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '15px 25px', backgroundColor: 'var(--color-aj-black)', color: 'white'
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <Eye size={20} />
-                            <span style={{ fontWeight: '600', fontSize: '1rem' }}>{fileData.name}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <a
-                                href={fileData.url} download={fileData.name}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                    backgroundColor: 'var(--color-aj-red)', color: 'white',
-                                    padding: '8px 16px', borderRadius: '6px', textDecoration: 'none',
-                                    fontSize: '0.85rem', fontWeight: '600'
-                                }}
-                            >
-                                <Download size={16} /> Descargar
-                            </a>
-                            <button
-                                onClick={() => setExpanded(false)}
-                                style={{
-                                    background: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
-                                    color: 'white', cursor: 'pointer', borderRadius: '6px',
-                                    padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px',
-                                    fontSize: '0.85rem'
-                                }}
-                            >
-                                <X size={16} /> Cerrar
-                            </button>
-                        </div>
-                    </div>
-                    <div
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/\.(png|jpe?g|gif|webp)$/i.test(fileData.name) ? (
-                            <img src={fileData.url} alt={fileData.name}
-                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 30px rgba(0,0,0,0.4)' }} />
-                        ) : (
-                            <iframe
-                                src={fileData.url} title={fileData.name}
-                                style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px', boxShadow: '0 4px 30px rgba(0,0,0,0.4)', backgroundColor: 'white' }}
-                            />
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
+        <DocumentSection
+            hook={hook}
+            isClient={isClient}
+            icon={FileText}
+            emptyMessage={`No se encontró ${label}.`}
+            uploadLabel={`Actualizar ${label}`}
+            formTitle={`Actualizar ${label}`}
+            deleteConfirm={`¿Eliminar este documento?`}
+            allowClientUpload={allowClientUpload}
+            allowClientDelete={allowClientDelete}
+            fileAccept="application/pdf"
+        />
     );
 };
 
@@ -642,17 +227,15 @@ const CompanyDashboard = () => {
     const navigate = useNavigate();
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const isClient = currentUser?.role === 'client';
+    const isClient = currentUser?.role !== 'admin';
 
     const [company, setCompany] = React.useState(null);
     const [selectedPermission, setSelectedPermission] = React.useState(null);
-    const [showCalendar, setShowCalendar] = React.useState(false);
-    const [generalSuccessMsg, setGeneralSuccessMsg] = React.useState('');
 
     // ─── Lógica de Alerta de Vencimiento ─────────────────────────────────────
     const getDigitGroup = (r) => {
         const last = r.charAt(r.length - 1);
-        const map = { '0': '0', '1': '1', '2': '2y3', '3': '2y3', '4': '4y5', '5': '4y5', '6': '6y7', '7': '6y7', '8': '8y9', '9': '8y9' };
+        const map = { '0': '0', '1': '1', '2y3': '2y3', '3': '2y3', '4y5': '4y5', '5': '4y5', '6y7': '6y7', '7': '6y7', '8y9': '8y9', '9': '8y9' };
         return map[last] || '0';
     };
 
@@ -685,72 +268,12 @@ const CompanyDashboard = () => {
     }, [nextDeadline]);
 
 
-
-    // Generic single-file sections (fichaRuc, reporteTributario) – sincronizadas con servidor
-    const genericStorageKey = `docs_${ruc}_genericFiles`;
-    const [files, setFiles] = React.useState({});
-    const [genericLoaded, setGenericLoaded] = React.useState(false);
-
-    // Cargar archivos genéricos desde servidor al montar
-    React.useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            let data = {};
-            try {
-                const res = await fetch(`/api/docs?key=${encodeURIComponent(genericStorageKey)}`);
-                if (res.ok) {
-                    const parsed = await res.json();
-                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
-                        data = parsed;
-                    }
-                }
-            } catch (e) { console.warn('Error cargando genéricos:', e); }
-
-            // Si servidor vacío, migrar de localStorage
-            if (Object.keys(data).length === 0) {
-                try {
-                    const saved = localStorage.getItem(genericStorageKey);
-                    if (saved) {
-                        const localData = JSON.parse(saved);
-                        if (localData && typeof localData === 'object' && !Array.isArray(localData) && Object.keys(localData).length > 0) {
-                            data = localData;
-                            fetch('/api/docs', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ key: genericStorageKey, data: localData }),
-                            }).catch(() => { });
-                        }
-                    }
-                } catch { /* vacío */ }
-            }
-
-            if (!cancelled) {
-                setFiles(data);
-                setGenericLoaded(true);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [genericStorageKey]);
-
-    // Persistir archivos genéricos en servidor + localStorage (solo tras loaded)
-    React.useEffect(() => {
-        if (!genericLoaded) return;
-        try {
-            localStorage.setItem(genericStorageKey, JSON.stringify(files));
-        } catch (e) {
-            console.error('Error guardando archivos genéricos:', e);
-        }
-        fetch('/api/docs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: genericStorageKey, data: files }),
-        }).catch(e => console.error('Error sync genéricos:', e));
-    }, [files, genericStorageKey, genericLoaded]);
-
     // ── Hooks para secciones de documentos ──────────────────────────────────
     const compName = company?.razonSocial || ruc;
+    const fichaRuc = useDocumentSection({ noPeriod: true, sectionLabel: 'Ficha RUC', companyName: compName, storageKey: `docs_${ruc}_fichaRuc` });
+    const reporteTributario = useDocumentSection({ sectionLabel: 'Reporte Tributario', companyName: compName, storageKey: `docs_${ruc}_reporteTributario` });
     const declaracionesMensuales = useDocumentSection({ sectionLabel: 'Declaraciones Mensuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesMensuales` });
-    const declaracionesAnuales = useDocumentSection({ sectionLabel: 'Declaraciones Anuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesAnuales` });
+    const declaracionesAnuales = useDocumentSection({ noMonth: true, sectionLabel: 'Declaraciones Anuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesAnuales` });
     const plame_boletas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'boletas', sectionLabel: 'Plame - Boletas', companyName: compName, storageKey: `docs_${ruc}_plame_boletas` });
     const plame_constancias = useDocumentSection({ multiple: true, zipLabel: 'constancias', sectionLabel: 'Plame - Constancias', companyName: compName, storageKey: `docs_${ruc}_plame_constancias` });
     const plame_nps = useDocumentSection({ multiple: true, zipLabel: 'nps', sectionLabel: 'Plame - NPS', companyName: compName, storageKey: `docs_${ruc}_plame_nps` });
@@ -780,6 +303,8 @@ const CompanyDashboard = () => {
             }
         };
 
+        if (sectionKey === 'fichaRuc') return isUnread(fichaRuc);
+        if (sectionKey === 'reporteTributario') return isUnread(reporteTributario);
         if (sectionKey === 'plame') return isUnread(plame_boletas) || isUnread(plame_constancias) || isUnread(plame_nps);
         if (sectionKey === 'otrosDocumentos') return isUnread(otros_notificaciones) || isUnread(otros_varios) || isUnread(otros_constitucion);
 
@@ -787,7 +312,7 @@ const CompanyDashboard = () => {
             declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas
         };
         return isUnread(hks[sectionKey]);
-    }, [isClient, plame_boletas, plame_constancias, plame_nps, otros_notificaciones, otros_varios, otros_constitucion, declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas]);
+    }, [isClient, fichaRuc, reporteTributario, plame_boletas, plame_constancias, plame_nps, otros_notificaciones, otros_varios, otros_constitucion, declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas]);
 
     // Global Notification Helper
     const hasAnyUnread = React.useMemo(() =>
@@ -797,6 +322,7 @@ const CompanyDashboard = () => {
 
     // ─── Agregador de Notificaciones Detalladas ────────────────────────────
     const allHooks = [
+        fichaRuc, reporteTributario,
         declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas,
         plame_boletas, plame_constancias, plame_nps,
         otros_notificaciones, otros_varios, otros_constitucion
@@ -810,11 +336,11 @@ const CompanyDashboard = () => {
             }
         });
         return events.sort((a, b) => b.id - a.id);
-    }, [declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
+    }, [fichaRuc.metadata, reporteTributario.metadata, declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
 
     const hasUnreadEvents = React.useMemo(() => {
         return allHooks.some(hook => hook.metadata?.unreadForAdmin);
-    }, [declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
+    }, [fichaRuc.metadata, reporteTributario.metadata, declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
 
     const markAllAsRead = React.useCallback(() => {
         allHooks.forEach(hook => hook.markAsRead());
@@ -825,6 +351,8 @@ const CompanyDashboard = () => {
     }, [allHooks]);
 
     const [showNotifications, setShowNotifications] = React.useState(false);
+    const [showCalendar, setShowCalendar] = React.useState(false);
+    const [generalSuccessMsg, setGeneralSuccessMsg] = React.useState('');
 
     const handleBellClick = () => {
         if (!showNotifications && hasUnreadEvents) {
@@ -848,12 +376,12 @@ const CompanyDashboard = () => {
                 markAsSeen(otros_notificaciones); markAsSeen(otros_varios); markAsSeen(otros_constitucion);
             } else {
                 const hks = {
-                    declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas
+                    fichaRuc, reporteTributario, declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas
                 };
                 markAsSeen(hks[selectedPermission]);
             }
         }
-    }, [selectedPermission, isClient, declaracionesMensuales, declaracionesAnuales, plame_boletas, plame_constancias, plame_nps, afpNet, bancos, cajaChica, compras, ventas, otros_notificaciones, otros_varios, otros_constitucion]);
+    }, [selectedPermission, isClient, fichaRuc, reporteTributario, declaracionesMensuales, declaracionesAnuales, plame_boletas, plame_constancias, plame_nps, afpNet, bancos, cajaChica, compras, ventas, otros_notificaciones, otros_varios, otros_constitucion]);
 
     // ── Descarga Masiva para Compras (excluir no deducibles) ──────────────────
     const handleComprasBulkDownload = async () => {
@@ -902,11 +430,30 @@ const CompanyDashboard = () => {
     };
 
     React.useEffect(() => {
-        const saved = localStorage.getItem('companies');
-        if (saved) {
-            const companies = JSON.parse(saved);
-            setCompany(companies.find(c => c.ruc === ruc));
-        }
+        const fetchCompany = async () => {
+            try {
+                const res = await fetch(`/api/companies?ruc=${ruc}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setCompany(data);
+                    // Actualizar caché local
+                    const saved = JSON.parse(localStorage.getItem('companies') || '[]');
+                    const idx = saved.findIndex(c => String(c.ruc) === String(ruc));
+                    if (idx > -1) saved[idx] = data;
+                    else saved.push(data);
+                    localStorage.setItem('companies', JSON.stringify(saved));
+                } else {
+                    console.error('Empresa no encontrada en DB');
+                    // Fallback a localStorage si el servidor falla
+                    const saved = JSON.parse(localStorage.getItem('companies') || '[]');
+                    const found = saved.find(c => String(c.ruc) === String(ruc));
+                    if (found) setCompany(found);
+                }
+            } catch (err) {
+                console.error('Error al obtener datos de empresa:', err);
+            }
+        };
+        fetchCompany();
     }, [ruc]);
 
     const handleLogout = () => {
@@ -1000,29 +547,23 @@ const CompanyDashboard = () => {
         setIsDownloading(false);
     };
 
-    const handleGenericFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (file && selectedPermission) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setFiles(prev => ({ ...prev, [selectedPermission]: { url: e.target.result, name: file.name } }));
-                setGeneralSuccessMsg('El archivo se subió correctamente');
-                setTimeout(() => setGeneralSuccessMsg(''), 3000);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    if (!company || String(company.ruc) !== String(ruc)) {
+        return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos de la empresa...</div>;
+    }
 
-    if (!company) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos de la empresa...</div>;
-
-    const activePermissions = Object.entries(company.permissions || {}).filter(([, v]) => v).map(([k]) => k);
+    const permissions = company.permissions || {};
+    const activePermissions = Object.entries(permissions).filter(([, v]) => v).map(([k]) => k);
     const permissionLabelsList = activePermissions.map(k => permissionConfig[k]?.label).filter(Boolean).join(', ');
 
     // Permissions with custom sections (no generic upload button)
-    const CUSTOM_PERMISSIONS = ['declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas', 'otrosDocumentos'];
+    const CUSTOM_PERMISSIONS = ['fichaRuc', 'reporteTributario', 'declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas', 'otrosDocumentos'];
 
     const renderModalContent = () => {
         switch (selectedPermission) {
+            case 'fichaRuc':
+                return <GenericFilePreview hook={fichaRuc} isClient={isClient} label="Ficha RUC" allowClientUpload={false} allowClientDelete={false} />;
+            case 'reporteTributario':
+                return <GenericFilePreview hook={reporteTributario} isClient={isClient} label="Reporte Tributario" allowClientUpload={false} allowClientDelete={false} />;
             case 'declaracionesMensuales':
                 return <DeclaracionesMensualesSection isClient={isClient} ruc={ruc} hook={declaracionesMensuales} />;
             case 'declaracionesAnuales':
@@ -1041,6 +582,8 @@ const CompanyDashboard = () => {
                         deleteConfirm="¿Eliminar este documento de AFP NET?"
                         hasType
                         typeOptions={['Detalle', 'Ticket']}
+                        allowClientUpload={false}
+                        allowClientDelete={false}
                     />
                 );
             case 'bancos':
@@ -1057,6 +600,8 @@ const CompanyDashboard = () => {
                         hasType
                         typeOptions={['Extracto Bancario', 'Conciliacion Bancaria']}
                         showTypeForClient={false}
+                        allowClientUpload={false}
+                        allowClientDelete={false}
                     />
                 );
             case 'cajaChica':
@@ -1073,6 +618,8 @@ const CompanyDashboard = () => {
                         hasType
                         typeOptions={['Control de Caja Chica', 'Arqueo de Caja']}
                         showTypeForClient={false}
+                        allowClientUpload={false}
+                        allowClientDelete={false}
                     />
                 );
             case 'compras':
@@ -1081,6 +628,7 @@ const CompanyDashboard = () => {
                         hook={compras}
                         isClient={isClient}
                         allowClientUpload={true}
+                        allowClientDelete={true}
                         showNonDeducible={true}
                         icon={ShoppingCart}
                         emptyMessage="No se encontraron comprobantes de compras."
@@ -1098,6 +646,7 @@ const CompanyDashboard = () => {
                         hook={ventas}
                         isClient={isClient}
                         allowClientUpload={true}
+                        allowClientDelete={true}
                         icon={TrendingUp}
                         emptyMessage="No se encontraron comprobantes de ventas."
                         uploadLabel="Subir ventas"
@@ -1353,17 +902,6 @@ const CompanyDashboard = () => {
                                 </h2>
                             </div>
 
-                            {/* Generic upload button (only for non-custom) */}
-                            {!CUSTOM_PERMISSIONS.includes(selectedPermission) && !isClient && (
-                                <div>
-                                    <input type="file" id="file-upload" accept="application/pdf" style={{ display: 'none' }} onChange={handleGenericFileUpload} />
-                                    <label htmlFor="file-upload" style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--color-aj-red)', color: 'white', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '500' }}
-                                        onMouseOver={e => e.currentTarget.style.backgroundColor = '#b91c1c'}
-                                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'var(--color-aj-red)'}>
-                                        <Upload size={18} /> Subir Archivo
-                                    </label>
-                                </div>
-                            )}
                         </div>
 
                         {/* Modal content */}

@@ -120,6 +120,8 @@ const PlameSection = ({ isClient, ruc, hooks }) => {
                 uploadLabel={section.uploadLabel}
                 formTitle={section.formTitle}
                 deleteConfirm={section.deleteConfirm}
+                allowClientUpload={false}
+                allowClientDelete={false}
                 hasZip={section.hasZip}
                 multiple
             />

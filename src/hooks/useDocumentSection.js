@@ -20,49 +20,53 @@ const docsApi = {
             const res = await fetch(`/api/docs?key=${encodeURIComponent(storageKey)}`);
             if (res.ok) {
                 const data = await res.json();
-                // Validar si es el formato nuevo { list, metadata } o el viejo []
-                if (data && (Array.isArray(data) || data.list)) {
-                    return { source: 'server', data };
+                if (data && data.list) {
+                    return { source: 'server', data: data.list, metadata: data.metadata };
                 }
             }
         } catch (e) {
             console.warn('[docsApi] Error cargando desde servidor:', e);
         }
-        // Fallback / merge con localStorage
-        try {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                const localData = JSON.parse(saved);
-                if (Array.isArray(localData) && localData.length > 0) {
-                    return { source: 'localStorage', data: localData };
-                }
-            }
-        } catch { /* vacío */ }
-        return { source: 'empty', data: [] };
+        return { source: 'empty', data: [], metadata: { unreadForAdmin: false, unreadForClient: false, events: [] } };
     },
 
-    async save(storageKey, data, metadata = {}) {
-        const listToSave = (Array.isArray(data) ? data : []).map(({ file, ...rest }) => rest);
-        const toSave = { list: listToSave, metadata };
-
-        // Guardar en localStorage como cache
+    async saveMetadata(storageKey, metadataUpdates) {
         try {
-            localStorage.setItem(storageKey, JSON.stringify(toSave));
-        } catch (e) {
-            console.error('Error guardando en localStorage:', e);
-        }
-        // Guardar en servidor
-        try {
-            const res = await fetch('/api/docs', {
+            await fetch('/api/docs-metadata', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: storageKey, data: toSave }),
+                body: JSON.stringify({ key: storageKey, ...metadataUpdates }),
             });
-            if (!res.ok) {
-                console.error('[docsApi] Error respuesta servidor:', res.status);
-            }
         } catch (e) {
-            console.error('[docsApi] Error guardando en servidor:', e);
+            console.error('[docsApi] Error actualizando metadata:', e);
+        }
+    },
+
+    async updateDocs(id, updates) {
+        try {
+            await fetch(`/api/docs/update?id=${encodeURIComponent(id)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates),
+            });
+        } catch (e) {
+            console.error('[docsApi] Error actualizando documento:', e);
+        }
+    },
+
+    async deleteDoc(id, extra = {}) {
+        try {
+            const docsUrl = new URL('/api/docs', window.location.origin);
+            docsUrl.searchParams.set('id', id);
+            if (extra.isClient) docsUrl.searchParams.set('isClient', 'true');
+            if (extra.companyName) docsUrl.searchParams.set('companyName', extra.companyName);
+            if (extra.sectionLabel) docsUrl.searchParams.set('sectionLabel', extra.sectionLabel);
+
+            const res = await fetch(docsUrl, { method: 'DELETE' });
+            return res.ok;
+        } catch (e) {
+            console.error('[docsApi] Error eliminando documento:', e);
+            return false;
         }
     }
 };
@@ -76,6 +80,8 @@ const useDocumentSection = ({
     zipLabel = 'docs',
     hasType = false,
     storageKey = '',
+    noPeriod = false,
+    noMonth = false,
     sectionLabel = 'Documentos',
     companyName = '',
 } = {}) => {
@@ -104,24 +110,15 @@ const useDocumentSection = ({
     React.useEffect(() => {
         if (!storageKey) return;
         let cancelled = false;
-        docsApi.load(storageKey).then(result => {
+        const loadData = async () => {
+            const { data, metadata: serverMeta } = await docsApi.load(storageKey);
             if (!cancelled) {
-                if (result.data && !Array.isArray(result.data) && result.data.list) {
-                    setList(result.data.list);
-                    setMetadata(result.data.metadata || { unreadForAdmin: false, unreadForClient: false, events: [] });
-                } else {
-                    setList(result.data || []);
-                    setMetadata({ unreadForAdmin: false, unreadForClient: false, events: [] });
-                }
+                setList(data || []);
+                if (serverMeta) setMetadata(serverMeta);
                 setLoaded(true);
-                // Sincronizar al servidor si viene de localStorage
-                if (result.source === 'localStorage') {
-                    const dataToSync = result.data && !Array.isArray(result.data) && result.data.list ? result.data.list : result.data;
-                    const metaToSync = result.data && !Array.isArray(result.data) && result.data.metadata ? result.data.metadata : { unreadForAdmin: false, unreadForClient: false };
-                    docsApi.save(storageKey, dataToSync, metaToSync);
-                }
             }
-        });
+        };
+        loadData();
         return () => { cancelled = true; };
     }, [storageKey]);
 
@@ -170,7 +167,7 @@ const useDocumentSection = ({
         if (lastSavedRef.current === currentData) return;
 
         lastSavedRef.current = currentData;
-        docsApi.save(storageKey, list, metadata);
+        // docsApi.save(storageKey, list, metadata); // This line is commented out as server-side persistence is now handled by /api/upload and /api/docs-metadata
     }, [list, metadata, storageKey, loaded]);
 
     const handleUpload = React.useCallback((event) => {
@@ -185,8 +182,12 @@ const useDocumentSection = ({
 
     const handleSave = React.useCallback(async (extraFields = {}) => {
         setUploadError('');
-        if (!uploadYear || !uploadMonth) {
+        if (!noPeriod && !noMonth && (!uploadYear || !uploadMonth)) {
             alert('Por favor complete todos los campos');
+            return false;
+        }
+        if (noMonth && !uploadYear) {
+            alert('Por favor seleccione el año');
             return false;
         }
         if (hasType && !uploadType) {
@@ -210,76 +211,76 @@ const useDocumentSection = ({
                     return false;
                 }
             }
-            const newItems = await Promise.all(
-                uploadFiles.map(async (file) => ({
-                    id: Date.now() + Math.random(),
-                    year: uploadYear,
-                    month: uploadMonth,
-                    url: await fileToBase64(file),
-                    name: file.name,
-                    type: uploadType || 'Documento',
-                    description: uploadDescription,
-                    adminComment: '',
-                    isNonDeducible: false,
-                    uploadedBy: extraFields.uploadedBy || 'admin',
-                    seenByAdmin: extraFields.uploadedBy === 'client' ? false : true,
-                    seenByClient: extraFields.uploadedBy === 'client' ? true : false,
-                    file,
-                    ...extraFields,
-                }))
-            );
-            setList(prev => [...prev, ...newItems]);
-            if (extraFields.uploadedBy === 'client') {
-                const newEvent = {
-                    id: Date.now(),
-                    message: `${companyName || 'Un cliente'} ha añadido comprobantes en la sección ${sectionLabel}`,
-                    timestamp: new Date().toISOString()
-                };
-                setMetadata(prev => ({
-                    ...prev,
-                    unreadForAdmin: true,
-                    events: [...(prev.events || []), newEvent]
-                }));
-            } else {
-                setMetadata(prev => ({ ...prev, unreadForClient: true }));
-            }
         } else {
-            const error = await validateFile(uploadFile, uploadYear, uploadMonth);
+            const error = await validateFile(uploadFile, noPeriod ? 'Actual' : uploadYear, noPeriod ? 'Siempre' : (noMonth ? 'Anual' : uploadMonth));
             if (error) {
                 setUploadError(error);
                 return false;
             }
-            const base64Url = await fileToBase64(uploadFile);
-            const newItem = {
-                id: Date.now(),
-                year: uploadYear,
-                month: uploadMonth,
-                url: base64Url,
-                name: uploadFile.name,
-                type: uploadType || 'Documento',
-                description: uploadDescription,
-                adminComment: '',
-                isNonDeducible: false,
-                uploadedBy: extraFields.uploadedBy || 'admin',
-                seenByAdmin: extraFields.uploadedBy === 'client' ? false : true,
-                seenByClient: extraFields.uploadedBy === 'client' ? true : false,
-                ...extraFields,
-            };
-            setList(prev => [...prev, newItem]);
-            if (extraFields.uploadedBy === 'client') {
-                const newEvent = {
-                    id: Date.now(),
-                    message: `${companyName || 'Un cliente'} ha añadido un comprobante en la sección ${sectionLabel}: ${uploadFile.name}`,
-                    timestamp: new Date().toISOString()
-                };
-                setMetadata(prev => ({
-                    ...prev,
-                    unreadForAdmin: true,
-                    events: [...(prev.events || []), newEvent]
-                }));
+        }
+
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const role = currentUser.role || 'client';
+
+        // Determinar RUC y Sección desde el storageKey (ej: docs_12345_compras)
+        const parts = storageKey.split('_');
+        const ruc = parts[1] || '00000000000';
+        const section = parts[2] || 'otros';
+
+        const formData = new FormData();
+        formData.append('ruc', ruc);
+        formData.append('section', section);
+        formData.append('year', noPeriod ? 'Actual' : uploadYear);
+        formData.append('month', noPeriod ? 'Siempre' : (noMonth ? 'Anual' : uploadMonth));
+        formData.append('storageKey', storageKey);
+
+        const extraData = {
+            type: uploadType,
+            description: uploadDescription,
+            isNonDeducible: false,
+            uploadedBy: role,
+            companyName: companyName,
+            sectionLabel: sectionLabel,
+            ...extraFields
+        };
+        formData.append('extraData', JSON.stringify(extraData));
+
+        const filesToUpload = multiple ? uploadFiles : [uploadFile];
+        filesToUpload.forEach(f => formData.append('file', f));
+
+        try {
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                if (result.ok) {
+                    setList(prev => [...prev, ...result.documents]);
+
+                    // Si es cliente, el servidor ya marcó unreadForAdmin = 1 en el plugin
+                    // Solo actualizamos el estado local si es necesario
+                    if (role === 'client') {
+                        // Recargar para obtener la lista de eventos actualizada
+                        const reload = await docsApi.load(storageKey);
+                        setMetadata(reload.metadata);
+                    }
+
+                    setSuccessMessage('Archivo(s) subido(s) con éxito.');
+                    setUploadFile(null);
+                    setUploadFiles([]);
+                    setUploadDescription('');
+                    setShowForm(false);
+                } else {
+                    throw new Error(result.message || 'Error en la subida');
+                }
             } else {
-                setMetadata(prev => ({ ...prev, unreadForClient: true }));
+                throw new Error('Error en la subida');
             }
+        } catch (e) {
+            setUploadError('Error al subir archivos: ' + e.message);
+            return false;
         }
 
         setFilterYear(uploadYear);
@@ -295,26 +296,36 @@ const useDocumentSection = ({
         setSuccessMessage('El archivo se subió correctamente');
         setTimeout(() => setSuccessMessage(''), 3000);
         return true;
-    }, [uploadYear, uploadMonth, hasType, uploadType, multiple, uploadFiles, uploadFile, validateFile, uploadDescription, setFilterYear, setFilterMonth, companyName, sectionLabel]);
+    }, [uploadYear, uploadMonth, uploadType, uploadDescription, uploadFiles, uploadFile, multiple, storageKey, companyName, sectionLabel]);
 
-    const handleDelete = React.useCallback((id, isClient = false) => {
+    const handleDelete = React.useCallback(async (id, isClient = false) => {
+        if (!window.confirm('¿Seguro de eliminar este documento?')) return;
         const itemToDelete = list.find(item => item.id === id);
-        setList(prev => prev.filter(item => item.id !== id));
-        if (isClient) {
-            const newEvent = {
-                id: Date.now(),
-                message: `${companyName || 'Un cliente'} ha eliminado un comprobante en la sección ${sectionLabel}${itemToDelete ? ': ' + itemToDelete.name : ''}`,
-                timestamp: new Date().toISOString()
-            };
-            setMetadata(prev => ({
-                ...prev,
-                unreadForAdmin: true,
-                events: [...(prev.events || []), newEvent]
-            }));
-        } else {
-            setMetadata(prev => ({ ...prev, unreadForClient: true }));
+
+        const ok = await docsApi.deleteDoc(id, {
+            isClient,
+            companyName: companyName,
+            sectionLabel: sectionLabel
+        });
+
+        if (ok) {
+            setList(prev => prev.filter(item => item.id !== id));
+            // Recargar metadata para ver el evento de eliminación si somos clientes
+            if (isClient) {
+                const reload = await docsApi.load(storageKey);
+                setMetadata(reload.metadata);
+            }
         }
-    }, [list, companyName, sectionLabel]);
+    }, [list, storageKey, companyName, sectionLabel]);
+
+    const toggleNonDeducible = React.useCallback(async (id, isNonDeducible, comment = '') => {
+        const updates = { isNonDeducible, adminComment: comment, seenByClient: false };
+        setList(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+        setMetadata(prev => ({ ...prev, unreadForClient: true }));
+
+        await docsApi.updateDocs(id, updates);
+        await docsApi.saveMetadata(storageKey, { unreadForClient: true });
+    }, [storageKey]);
 
     const handleDownloadZip = React.useCallback(async () => {
         const filtered = list.filter(item =>
@@ -384,13 +395,15 @@ const useDocumentSection = ({
         }
     }, [list, metadata.unreadForClient]);
 
-    const markAsRead = React.useCallback(() => {
+    const markAsRead = React.useCallback(async () => {
         setMetadata(prev => ({ ...prev, unreadForAdmin: false }));
-    }, []);
+        await docsApi.saveMetadata(storageKey, { unreadForAdmin: false });
+    }, [storageKey]);
 
-    const clearNotifications = React.useCallback(() => {
+    const clearNotifications = React.useCallback(async () => {
         setMetadata(prev => ({ ...prev, unreadForAdmin: false, events: [] }));
-    }, []);
+        await docsApi.saveMetadata(storageKey, { unreadForAdmin: false, clearEvents: true });
+    }, [storageKey]);
 
     return React.useMemo(() => ({
         list,
@@ -414,8 +427,11 @@ const useDocumentSection = ({
         markAllAsSeenByClient,
         markAsRead,
         clearNotifications,
+        toggleNonDeducible,
         setList,
         setMetadata,
+        noPeriod,
+        noMonth,
         uploadError,
         setUploadError,
         successMessage,
@@ -424,7 +440,7 @@ const useDocumentSection = ({
         list, metadata, filteredList, availableYears, filterYear, filterMonth, showForm,
         uploadYear, uploadMonth, uploadType, uploadDescription, uploadFile, uploadFiles,
         handleUpload, handleSave, handleDelete, handleDownloadZip,
-        markAllAsSeenByAdmin, markAllAsSeenByClient, markAsRead, clearNotifications, uploadError, successMessage
+        markAllAsSeenByAdmin, markAllAsSeenByClient, markAsRead, clearNotifications, uploadError, successMessage, noPeriod, noMonth
     ]);
 };
 

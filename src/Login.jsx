@@ -16,25 +16,47 @@ const Login = () => {
 
   // Mostrar todos los usuarios en F12 al cargar la página de login
   React.useEffect(() => {
-    const localCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    const allUsers = [...seedUsers.users, ...localCompanies];
-    console.log('%c═══ CUENTAS DISPONIBLES (F12) ═══', 'color: #dc2626; font-weight: bold; font-size: 14px;');
-    console.table(allUsers.map(u => ({
-      Usuario: u.usuario,
-      Contraseña: u.contrasena,
-      Rol: u.role || 'client',
-      'Razón Social': u.razonSocial,
-      RUC: u.ruc || 'N/A'
-    })));
+    const syncUsers = async () => {
+      try {
+        const res = await fetch('/api/companies');
+        const dbCompanies = await res.json();
+        if (Array.isArray(dbCompanies)) {
+          localStorage.setItem('companies', JSON.stringify(dbCompanies));
+        }
+      } catch (err) {
+        console.warn('Usando caché local para empresas:', err);
+      }
+
+      const localCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
+      const allUsers = [...seedUsers.users, ...localCompanies];
+      console.log('%c═══ CUENTAS DISPONIBLES (F12) ═══', 'color: #dc2626; font-weight: bold; font-size: 14px;');
+      console.table(allUsers.map(u => ({
+        Usuario: u.usuario,
+        Contraseña: u.contrasena,
+        Rol: u.role || 'client',
+        'Razón Social': u.razonSocial,
+        RUC: u.ruc || 'N/A'
+      })));
+    };
+    syncUsers();
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    // Combine seed users and localStorage companies
-    const localCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    const allUsers = [...seedUsers.users, ...localCompanies];
+    // Re-sync final before login check
+    let dbCompanies = [];
+    try {
+      const res = await fetch('/api/companies');
+      dbCompanies = await res.json();
+      if (Array.isArray(dbCompanies)) {
+        localStorage.setItem('companies', JSON.stringify(dbCompanies));
+      }
+    } catch (err) {
+      dbCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
+    }
 
+    const allUsers = [...seedUsers.users, ...dbCompanies];
     const user = allUsers.find(u => u.usuario === username && u.contrasena === password);
 
     if (user) {

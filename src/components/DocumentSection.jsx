@@ -52,7 +52,7 @@ const DocumentSection = ({
     typeOptions = [],
     showTypeForClient = false,
     allowClientUpload = false,
-    allowClientDelete = true,
+    allowClientDelete = false,
     showNonDeducible = false,
     onCustomZipDownload = null,
     extraListContent = null,
@@ -108,6 +108,7 @@ const DocumentSection = ({
         handleSave,
         handleDelete,
         handleDownloadZip,
+        toggleNonDeducible,
         setList,
         uploadError,
         setUploadError,
@@ -128,22 +129,26 @@ const DocumentSection = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>{formTitle}</h3>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
-                        <select value={uploadYear} onChange={e => setUploadYear(e.target.value)} style={selectStyle}>
-                            <option value="">Seleccionar Año</option>
-                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
+                {!hook.noPeriod && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                            <select value={uploadYear} onChange={e => setUploadYear(e.target.value)} style={selectStyle}>
+                                <option value="">Seleccionar Año</option>
+                                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                        {!hook.noMonth && (
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                                <select value={uploadMonth} onChange={e => setUploadMonth(e.target.value)} style={selectStyle}>
+                                    <option value="">Seleccionar Mes</option>
+                                    {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            </div>
+                        )}
                     </div>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
-                        <select value={uploadMonth} onChange={e => setUploadMonth(e.target.value)} style={selectStyle}>
-                            <option value="">Seleccionar Mes</option>
-                            {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                    </div>
-                </div>
+                )}
 
                 {hasType && typeOptions.length > 0 && (
                     <div>
@@ -335,26 +340,35 @@ const DocumentSection = ({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Filters */}
-            <div style={{ display: 'flex', gap: '20px' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
-                    <select
-                        value={filterYear}
-                        onChange={e => { setFilterYear(e.target.value); setFilterMonth(''); }}
-                        style={selectStyle}
-                    >
-                        <option value="">Todos los años</option>
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
+            {!hook.noPeriod && (
+                <div style={{ display: 'flex', gap: '20px' }}>
+                    <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Año</label>
+                        <select
+                            value={filterYear}
+                            onChange={e => { setFilterYear(e.target.value); setFilterMonth(''); }}
+                            style={selectStyle}
+                        >
+                            <option value="">Todos los años</option>
+                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                    {!hook.noMonth && (
+                        <div style={{ flex: 1 }}>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
+                            <select
+                                value={filterMonth}
+                                onChange={e => setFilterMonth(e.target.value)}
+                                style={selectStyle}
+                                disabled={!filterYear}
+                            >
+                                <option value="">Todos los meses</option>
+                                {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
+                    )}
                 </div>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Mes</label>
-                    <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={selectStyle}>
-                        <option value="">Todos los meses</option>
-                        {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                </div>
-            </div>
+            )}
 
             {/* List */}
             <div style={{
@@ -375,7 +389,7 @@ const DocumentSection = ({
                                 }}
                             >
                                 {/* Preview thumbnail */}
-                                {item.url && item.name && /\.(pdf|png|jpe?g|gif|webp)$/i.test(item.name) && (
+                                {!!item.url && !!item.name && /\.(pdf|png|jpe?g|gif|webp)$/i.test(item.name) && (
                                     <div
                                         className="preview-thumb-container"
                                         style={{
@@ -417,7 +431,7 @@ const DocumentSection = ({
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: '600', marginBottom: '4px' }}>
                                             {item.name}
-                                            {item.type && item.type !== 'Documento' && (
+                                            {!!item.type && item.type !== 'Documento' && (
                                                 <span style={{
                                                     marginLeft: '8px', fontSize: '0.75rem', padding: '2px 8px',
                                                     borderRadius: '12px', backgroundColor: '#dbeafe',
@@ -427,19 +441,20 @@ const DocumentSection = ({
                                                 </span>
                                             )}
                                         </div>
-                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>
-                                            {item.month} {item.year}
-                                            {extraListContent && extraListContent(item)}
+                                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                            {new Date(item.timestamp).toLocaleDateString()}
+                                            {!hook.noPeriod && <> - {!hook.noMonth && <>{item.month} </>}{item.year}</>}
                                         </div>
-                                        {item.description && (
+                                        {!!extraListContent && extraListContent(item)}
+                                        {!!item.description && (
                                             <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '6px', fontStyle: 'italic', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '4px' }}>
                                                 <strong>Descripción:</strong> {item.description}
                                             </div>
                                         )}
-                                        {item.isNonDeducible && (
+                                        {!!item.isNonDeducible && (
                                             <div style={{ marginTop: '8px', padding: '8px', borderRadius: '6px', backgroundColor: '#fff1f2', border: '1px solid #fecaca' }}>
                                                 <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#e11d48', textTransform: 'uppercase', marginBottom: '2px' }}>No Deducible</div>
-                                                {item.adminComment && <div style={{ fontSize: '0.85rem', color: '#9f1239' }}><strong>Motivo:</strong> {item.adminComment}</div>}
+                                                {!!item.adminComment && <div style={{ fontSize: '0.85rem', color: '#9f1239' }}><strong>Motivo:</strong> {item.adminComment}</div>}
                                             </div>
                                         )}
                                     </div>
@@ -464,11 +479,7 @@ const DocumentSection = ({
                                                 ) : (
                                                     <button
                                                         onClick={() => {
-                                                            setList(prev => prev.map(d =>
-                                                                d.id === item.id
-                                                                    ? { ...d, isNonDeducible: false, adminComment: '', seenByClient: true }
-                                                                    : d
-                                                            ));
+                                                            toggleNonDeducible(item.id, false);
                                                         }}
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#22c55e', padding: '0', display: 'flex' }}
                                                         title="Volver a marcar como Deducible"
@@ -537,7 +548,7 @@ const DocumentSection = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <Eye size={20} />
                             <span style={{ fontWeight: '600', fontSize: '1rem' }}>{expandedDoc.name}</span>
-                            {expandedDoc.month && <span style={{ opacity: 0.7, fontSize: '0.9rem' }}>— {expandedDoc.month} {expandedDoc.year}</span>}
+                            {!!expandedDoc.month && <span style={{ opacity: 0.7, fontSize: '0.9rem' }}>— {expandedDoc.month} {expandedDoc.year}</span>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <a
@@ -653,11 +664,7 @@ const DocumentSection = ({
                             </button>
                             <button
                                 onClick={() => {
-                                    setList(prev => prev.map(d =>
-                                        d.id === rejectionItem.id
-                                            ? { ...d, isNonDeducible: true, adminComment: rejectionComment, seenByClient: false }
-                                            : d
-                                    ));
+                                    toggleNonDeducible(rejectionItem.id, true, rejectionComment);
                                     setRejectionItem(null);
                                 }}
                                 style={{

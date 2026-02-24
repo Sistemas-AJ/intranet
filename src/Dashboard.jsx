@@ -8,12 +8,25 @@ import CreateUserModal from './CreateUserModal';
 import seedUsers from './usuarios/usuarios.json';
 
 const Dashboard = () => {
+    const [companies, setCompanies] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    // Load companies from localStorage on initial render
-    const [companies, setCompanies] = useState(() => {
-        const savedCompanies = localStorage.getItem('companies');
-        return savedCompanies ? JSON.parse(savedCompanies) : [];
-    });
+    useEffect(() => {
+        const sync = async () => {
+            try {
+                const res = await fetch('/api/companies');
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setCompanies(data);
+                    localStorage.setItem('companies', JSON.stringify(data));
+                }
+            } catch (err) {
+                console.error('Error syncing companies:', err);
+                const saved = localStorage.getItem('companies');
+                if (saved) setCompanies(JSON.parse(saved));
+            }
+        };
+        sync();
+    }, []);
 
     // ── Mostrar todos los usuarios en la consola F12 al cargar ──────────────
     useEffect(() => {
@@ -26,7 +39,6 @@ const Dashboard = () => {
             'Razón Social': u.razonSocial,
             RUC: u.ruc || 'N/A'
         })));
-        console.log(`%cTotal: ${allUsers.length} usuario(s)`, 'color: #059669; font-weight: bold;');
     }, [companies]);
 
 
@@ -46,39 +58,42 @@ const Dashboard = () => {
         navigate('/');
     };
 
-    const handleCreateCompany = (companyData) => {
-        let updatedCompanies;
-
-        if (editingCompany) {
-            // Update existing company
-            updatedCompanies = companies.map(company =>
-                company.ruc === editingCompany.ruc ? { ...company, ...companyData } : company
-            );
-        } else {
-            // Create new company
-            // Add role to company data for login purposes
+    const handleCreateCompany = async (companyData) => {
+        try {
             const newCompany = { ...companyData, role: 'client' };
-            updatedCompanies = [...companies, newCompany];
+            const res = await fetch('/api/companies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCompany)
+            });
+            if (res.ok) {
+                // Re-fetch everything to stay in sync
+                const syncRes = await fetch('/api/companies');
+                const data = await syncRes.json();
+                setCompanies(data);
+                localStorage.setItem('companies', JSON.stringify(data));
+                setIsModalOpen(false);
+                setEditingCompany(null);
+                console.log('%c✅ Usuario guardado en DB', 'color: #059669; font-weight: bold;', companyData);
+            }
+        } catch (err) {
+            console.error('Error al guardar empresa:', err);
+            alert('Error al conectar con el servidor.');
         }
-
-        setCompanies(updatedCompanies);
-        localStorage.setItem('companies', JSON.stringify(updatedCompanies));
-        setIsModalOpen(false);
-        setEditingCompany(null);
-
-        // Log para F12
-        console.log('%c✅ Usuario guardado:', 'color: #059669; font-weight: bold;', companyData);
-
-
     };
 
-    const handleDeleteCompany = (ruc) => {
+    const handleDeleteCompany = async (ruc) => {
         if (window.confirm('¿Estás seguro de que deseas eliminar esta empresa?')) {
-            const updatedCompanies = companies.filter(company => company.ruc !== ruc);
-            setCompanies(updatedCompanies);
-            localStorage.setItem('companies', JSON.stringify(updatedCompanies));
-
-
+            try {
+                const res = await fetch(`/api/companies/${ruc}`, { method: 'DELETE' });
+                if (res.ok) {
+                    const updated = companies.filter(c => c.ruc !== ruc);
+                    setCompanies(updated);
+                    localStorage.setItem('companies', JSON.stringify(updated));
+                }
+            } catch (err) {
+                console.error('Error al eliminar:', err);
+            }
         }
     };
 

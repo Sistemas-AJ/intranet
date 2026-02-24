@@ -1,5 +1,6 @@
 # Logs
 clientes/
+data/
 logs
 *.log
 npm-debug.log*
