@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Eye, EyeOff } from 'lucide-react';
 
-const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
+const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompanies = [] }) => {
     const [formData, setFormData] = useState({
         ruc: initialData?.ruc || '',
         razonSocial: initialData?.razonSocial || '',
@@ -49,6 +49,15 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
         setPermissions(prev => ({ ...prev, [name]: !prev[name] }));
     };
 
+    const handleSelectAll = () => {
+        const allSelected = Object.values(permissions).every(val => val);
+        const newState = {};
+        Object.keys(permissions).forEach(key => {
+            newState[key] = !allSelected;
+        });
+        setPermissions(newState);
+    };
+
     const [isLoadingRuc, setIsLoadingRuc] = useState(false);
 
     const handleSearchRuc = async () => {
@@ -78,6 +87,16 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Validar unicidad de RUC (solo si no es edición o si el RUC cambió)
+        if (!isEdit || (initialData && formData.ruc !== initialData.ruc)) {
+            const rucExists = existingCompanies.some(c => c.ruc === formData.ruc);
+            if (rucExists) {
+                alert('Este RUC ya esta registrado');
+                return;
+            }
+        }
+
         const newCompany = { ...formData, permissions };
         // console.log('Creating/Updating User:', newCompany);
         alert(isEdit ? 'Permisos actualizados exitosamente' : 'Usuario creado exitosamente');
@@ -268,7 +287,34 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit }) => {
                     </div>
 
                     <div style={{ marginBottom: '25px' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '10px', fontWeight: '600' }}>Permisos</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: 0 }}>Permisos</h3>
+                            <button
+                                type="button"
+                                onClick={handleSelectAll}
+                                style={{
+                                    fontSize: '0.85rem',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px',
+                                    border: '1px solid var(--color-aj-red)',
+                                    background: 'transparent',
+                                    color: 'var(--color-aj-red)',
+                                    cursor: 'pointer',
+                                    fontWeight: '600',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseOver={e => {
+                                    e.currentTarget.style.background = 'var(--color-aj-red)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
+                                onMouseOut={e => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.color = 'var(--color-aj-red)';
+                                }}
+                            >
+                                Seleccionar todo
+                            </button>
+                        </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                             {Object.keys(permissions).map((key) => (
                                 <label key={key} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>

@@ -2,15 +2,32 @@ import fs from 'fs';
 import path from 'path';
 
 const CLIENTES_DIR = path.resolve(process.cwd(), 'clientes');
+const DATA_DIR = path.join(CLIENTES_DIR, '_data');
+
+/** Helper: leer body JSON de un request */
+function readBody(req) {
+    return new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try { resolve(JSON.parse(body)); }
+            catch (e) { reject(e); }
+        });
+        req.on('error', reject);
+    });
+}
 
 /**
  * Vite plugin que agrega endpoints API para crear/eliminar carpetas de clientes
  * en el sistema de archivos local.
  */
 export default function clientesPlugin() {
-    // Asegurar que exista la carpeta raíz
+    // Asegurar que existan las carpetas
     if (!fs.existsSync(CLIENTES_DIR)) {
         fs.mkdirSync(CLIENTES_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
     return {
@@ -143,6 +160,78 @@ export default function clientesPlugin() {
                 }
 
                 next();
+            });
+
+            // ══════════════════════════════════════════════════════════════════
+            // ── API de Documentos (sincronización admin ↔ cliente) ──────────
+            // ══════════════════════════════════════════════════════════════════
+
+            // GET /api/docs?key=STORAGE_KEY → Leer documentos
+            // POST /api/docs { key, data } → Guardar documentos
+            // DELETE /api/docs?key=STORAGE_KEY → Eliminar clave
+            server.middlewares.use('/api/docs', async (req, res, next) => {
+                // Sanitizar la clave para nombre de archivo seguro
+                const safeKey = (k) => (k || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+                try {
+                    if (req.method === 'GET') {
+                        const url = new URL(req.url, 'http://localhost');
+                        const key = url.searchParams.get('key');
+                        if (!key) {
+                            res.statusCode = 400;
+                            res.end(JSON.stringify({ error: 'Falta parámetro key' }));
+                            return;
+                        }
+                        const filePath = path.join(DATA_DIR, `${safeKey(key)}.json`);
+                        if (fs.existsSync(filePath)) {
+                            const content = fs.readFileSync(filePath, 'utf-8');
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(content);
+                        } else {
+                            res.setHeader('Content-Type', 'application/json');
+                            res.end(JSON.stringify([]));
+                        }
+                        return;
+                    }
+
+                    if (req.method === 'POST') {
+                        const body = await readBody(req);
+                        const { key, data } = body;
+                        if (!key) {
+                            res.statusCode = 400;
+                            res.end(JSON.stringify({ error: 'Falta campo key' }));
+                            return;
+                        }
+                        const filePath = path.join(DATA_DIR, `${safeKey(key)}.json`);
+                        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ ok: true, key, items: Array.isArray(data) ? data.length : 1 }));
+                        return;
+                    }
+
+                    if (req.method === 'DELETE') {
+                        const url = new URL(req.url, 'http://localhost');
+                        const key = url.searchParams.get('key');
+                        if (!key) {
+                            res.statusCode = 400;
+                            res.end(JSON.stringify({ error: 'Falta parámetro key' }));
+                            return;
+                        }
+                        const filePath = path.join(DATA_DIR, `${safeKey(key)}.json`);
+                        if (fs.existsSync(filePath)) {
+                            fs.unlinkSync(filePath);
+                        }
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ ok: true, deleted: key }));
+                        return;
+                    }
+
+                    next();
+                } catch (e) {
+                    console.error('[docs-api] Error:', e);
+                    res.statusCode = 500;
+                    res.end(JSON.stringify({ error: e.message }));
+                }
             });
         }
     };
