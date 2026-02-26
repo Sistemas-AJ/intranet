@@ -1,5 +1,9 @@
 # Logs
 clientes/
+
+# Security — never commit credentials or environment variables
+src/usuarios/
+.env
 data/
 logs
 *.log

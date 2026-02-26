@@ -5,7 +5,7 @@ import { User, LogOut, Menu, Search, SquarePen, Trash2, FilePenLine, Bell } from
 import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
 import CreateUserModal from './CreateUserModal';
-import seedUsers from './usuarios/usuarios.json';
+// usuarios.json removed — credentials are managed server-side
 
 const Dashboard = () => {
     const [companies, setCompanies] = useState([]);
@@ -28,18 +28,7 @@ const Dashboard = () => {
         sync();
     }, []);
 
-    // ── Mostrar todos los usuarios en la consola F12 al cargar ──────────────
-    useEffect(() => {
-        const allUsers = [...seedUsers.users, ...companies];
-        console.log('%c═══ USUARIOS REGISTRADOS ═══', 'color: #dc2626; font-weight: bold; font-size: 14px;');
-        console.table(allUsers.map(u => ({
-            Usuario: u.usuario,
-            Contraseña: u.contrasena,
-            Rol: u.role || 'client',
-            'Razón Social': u.razonSocial,
-            RUC: u.ruc || 'N/A'
-        })));
-    }, [companies]);
+    // Password logging removed for security — credentials never leave the server
 
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);

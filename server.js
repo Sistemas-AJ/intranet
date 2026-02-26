@@ -214,9 +214,62 @@ const upload = multer({
     },
 });
 
+// ── SEED ADMIN ───────────────────────────────────────────────────────────────
+// Guarantees the admin account always exists in the DB.
+// To change the admin password: update it here once, it will be updated on
+// next server start.  NEVER store this in a JSON file that gets bundled.
+(function seedAdmin() {
+    const ADMIN_USUARIO = process.env.ADMIN_USUARIO || 'AJADMINISTRADOR';
+    const ADMIN_CONTRASENA = process.env.ADMIN_CONTRASENA || '197720';
+    db.prepare(`
+    INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
+    VALUES ('ADMIN', 'Administrador', ?, ?, 'admin', '{}')
+    ON CONFLICT(ruc) DO UPDATE SET
+      usuario    = excluded.usuario,
+      contrasena = excluded.contrasena
+  `).run(ADMIN_USUARIO, ADMIN_CONTRASENA);
+})();
+
 // ── API ROUTES ───────────────────────────────────────────────────────────────
 
-// -- Companies (admin only for write, read open for login flow) --
+// -- Login (public — validates credentials, returns safe user object) --
+
+app.post('/api/login', (req, res) => {
+    const { usuario, contrasena } = req.body || {};
+    if (!usuario || !contrasena) {
+        return res.status(400).json({ error: 'Faltan credenciales' });
+    }
+    try {
+        const user = db
+            .prepare('SELECT * FROM companies WHERE usuario = ? AND contrasena = ?')
+            .get(String(usuario), String(contrasena));
+
+        if (!user) {
+            return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+        }
+
+        // Return ONLY safe fields — password never leaves the server
+        res.json({
+            ok: true,
+            user: {
+                ruc: user.ruc,
+                razonSocial: user.razonSocial,
+                usuario: user.usuario,
+                role: user.role || 'client',
+                permissions: JSON.parse(user.permissions || '{}'),
+            },
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// -- Companies (admin only for write; read is public but strips contrasena) --
+
+// Helper: remove password before sending to client
+function safeCompany(c) {
+    const { contrasena: _omit, ...safe } = c;
+    safe.permissions = JSON.parse(safe.permissions || '{}');
+    return safe;
+}
 
 app.get('/api/companies', (req, res) => {
     const ruc = req.query.ruc;
@@ -224,15 +277,13 @@ app.get('/api/companies', (req, res) => {
         if (ruc) {
             const company = db.prepare('SELECT * FROM companies WHERE ruc = ?').get(ruc);
             if (company) {
-                company.permissions = JSON.parse(company.permissions || '{}');
-                res.json(company);
+                res.json(safeCompany(company));
             } else {
                 res.status(404).json({ error: 'No encontrado' });
             }
         } else {
             const list = db.prepare('SELECT * FROM companies').all();
-            list.forEach((c) => { c.permissions = JSON.parse(c.permissions || '{}'); });
-            res.json(list);
+            res.json(list.map(safeCompany));
         }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });

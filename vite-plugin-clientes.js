@@ -60,6 +60,20 @@ db.exec(`
   );
 `);
 
+// ── SEED ADMIN ───────────────────────────────────────────────────────────────
+// Guarantees the admin account always exists in the DB (Local Dev).
+(function seedAdmin() {
+    const ADMIN_USUARIO = 'AJADMINISTRADOR';
+    const ADMIN_CONTRASENA = '197720';
+    db.prepare(`
+        INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
+        VALUES ('ADMIN', 'Administrador', ?, ?, 'admin', '{}')
+        ON CONFLICT(ruc) DO UPDATE SET
+        usuario = excluded.usuario,
+        contrasena = excluded.contrasena
+    `).run(ADMIN_USUARIO, ADMIN_CONTRASENA);
+})();
+
 /** Helper: sanitizar nombre para carpeta */
 function sanitize(name) {
     return (name || 'SIN_NOMBRE')
@@ -157,7 +171,11 @@ export default function clientesPlugin() {
                         const tx = db.transaction((items) => {
                             for (const item of items) {
                                 if (!item.ruc) continue;
-                                insert.run(String(item.ruc), item.razonSocial, item.usuario, item.contrasena, item.role || 'client', JSON.stringify(item.permissions || {}));
+                                insert.run(
+                                    String(item.ruc), item.razonSocial, item.usuario,
+                                    item.contrasena, item.role || 'client',
+                                    JSON.stringify(item.permissions || {})
+                                );
                             }
                         });
                         tx(list);
@@ -179,6 +197,43 @@ export default function clientesPlugin() {
                     return;
                 }
                 next();
+            });
+
+            // ── API Login (SQLite) ──────────────────────────────────────────
+            server.middlewares.use('/api/login', async (req, res, next) => {
+                if (req.method !== 'POST') return next();
+                try {
+                    const { usuario, contrasena } = await readBody(req);
+                    if (!usuario || !contrasena) {
+                        res.statusCode = 400;
+                        res.end(JSON.stringify({ error: 'Faltan credenciales' }));
+                        return;
+                    }
+
+                    const user = db.prepare('SELECT * FROM companies WHERE usuario = ? AND contrasena = ?')
+                        .get(String(usuario), String(contrasena));
+
+                    if (!user) {
+                        res.statusCode = 401;
+                        res.end(JSON.stringify({ error: 'Usuario o contraseña incorrectos' }));
+                        return;
+                    }
+
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        ok: true,
+                        user: {
+                            ruc: user.ruc,
+                            razonSocial: user.razonSocial,
+                            usuario: user.usuario,
+                            role: user.role || 'client',
+                            permissions: JSON.parse(user.permissions || '{}'),
+                        },
+                    }));
+                } catch (e) {
+                    res.statusCode = 500;
+                    res.end(JSON.stringify({ error: e.message }));
+                }
             });
 
             // ── API Legacy (Para compatibilidad temporal) ──────────────────
