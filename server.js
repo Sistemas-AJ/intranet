@@ -500,9 +500,14 @@ app.get('/api/docs', requireRole('admin', 'client'), (req, res) => {
     const key = req.query.key;
     if (!key) return res.status(400).json({ error: 'Falta key' });
 
-    // Clients can only read their own storage keys (key format: ruc_section)
+    // Clients can only read their own storage keys. the frontend prefixes
+    // every key with "docs_" (eg. "docs_12345_compras"), so we must strip
+    // that before extracting the RUC. otherwise key.split('_')[0] will return
+    // "docs" and the check always fails.
     if (req.userRole === 'client') {
-        const keyRuc = key.split('_')[0];
+        const parts = key.split('_');
+        // if the first segment is the literal prefix, take the second chunk
+        const keyRuc = parts[0] === 'docs' ? parts[1] : parts[0];
         if (keyRuc !== req.userRuc) {
             return res.status(403).json({ error: 'Acceso denegado a documentos de otro cliente' });
         }
@@ -546,7 +551,8 @@ app.delete('/api/docs', requireRole('admin', 'client'), (req, res) => {
                 return res.status(403).json({ error: 'Los clientes no pueden eliminar archivos subidos por el administrador' });
             }
         } else if (key) {
-            const keyRuc = key.split('_')[0];
+            const parts = key.split('_');
+            const keyRuc = parts[0] === 'docs' ? parts[1] : parts[0];
             if (keyRuc !== req.userRuc) {
                 return res.status(403).json({ error: 'Acceso denegado' });
             }
