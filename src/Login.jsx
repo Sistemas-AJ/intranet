@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import api from './api';
 import logo from './assets/LogoSolo.png';
 import logoHorizontal from './assets/Logo Horizonal.png';
 import officeBg from './assets/office_bg.png';
@@ -19,21 +20,14 @@ const Login = () => {
     setError('');
 
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario: username, contrasena: password }),
+      const { data } = await api.post('/login', {
+        usuario: username,
+        contrasena: password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Usuario o contraseña incorrectos');
-        return;
-      }
-
-      // Store only safe fields — password is NEVER stored client-side
-      const { user } = data;
+      // token comes from server; save alongside user
+      const { user, token } = data;
+      localStorage.setItem('authToken', token);
       localStorage.setItem('currentUser', JSON.stringify({
         ruc: user.ruc,
         razonSocial: user.razonSocial,

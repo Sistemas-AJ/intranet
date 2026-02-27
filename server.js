@@ -622,13 +622,18 @@ app.post('/api/docs-metadata', requireRole('admin', 'client'), (req, res) => {
 
 // ── STATIC FILES ─────────────────────────────────────────────────────────────
 
-app.use('/clientes', express.static(CLIENTES_DIR));
-app.use(express.static(DIST_DIR));
+if (process.env.NODE_ENV === 'production' || fs.existsSync(DIST_DIR)) {
+    app.use('/clientes', express.static(CLIENTES_DIR));
+    app.use(express.static(DIST_DIR));
 
-// SPA Fallback
-app.get('*', (_req, res) => {
-    res.sendFile(path.join(DIST_DIR, 'index.html'));
-});
+    // SPA Fallback
+    app.get('*', (_req, res) => {
+        res.sendFile(path.join(DIST_DIR, 'index.html'));
+    });
+} else {
+    // In development the front-end is served by Vite; avoid 404 noise
+    console.log('Skipping static file middleware (no dist directory)');
+}
 
 // ── ERROR HANDLER ────────────────────────────────────────────────────────────
 

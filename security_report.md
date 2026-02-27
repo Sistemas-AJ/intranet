@@ -71,3 +71,7 @@ a `/api/companies` sin ninguna autenticación.  Este plugin fue retirado y
 ahora Vite hace proxy a `VITE_API_URL` (normalmente `http://localhost:3000`),
 por lo que el comportamiento de dev coincide con producción y no hay acceso
 abierto desde pestañas privadas.
+* **Cambio en el cliente Web:** todas las llamadas al backend `/api` se han
+  migrado de `fetch` a un wrapper `axios` (`src/api.js`) que inserta el token
+  de autenticación automáticamente.  Esto evita repetir lógica de cabeceras
+  y reduce el riesgo de olvidarse de enviar el token en una petición.

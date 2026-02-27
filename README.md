@@ -40,6 +40,12 @@ has been removed.  The Vite server now proxies `/api` to the real
 backend (`VITE_API_URL`), so behavior during development closely matches
 production and authentication is enforced.
 
+Because the frontend is served by Vite during development, the Express
+server no longer attempts to serve the `dist` directory unless it actually
+exists (or when `NODE_ENV` is `production`).  This avoids noisy `ENOENT`
+errors for `/dist/index.html` when navigating the app while running in
+dev mode.
+
 ### Security enhancements
 
 * Passwords are now **hashed with bcrypt** (configurable salt rounds) instead
@@ -52,6 +58,16 @@ production and authentication is enforced.
   In particular, `/api/companies` — previously publicly readable — now only
   returns information to authenticated users (admins may list all companies,
   clients may only fetch their own).
+
+#### Front-end token handling & API helper
+
+* The React client now uses `src/api.js`, a thin `axios` wrapper with a
+  request interceptor that reads `localStorage.authToken` and attaches the
+  bearer token automatically.  Components call `api.get`, `api.post`, etc.,
+  instead of performing raw `fetch` calls, so credential management is centralized.
+* Tokens are saved during login and cleared on logout; developers should
+  continue using `localStorage.currentUser` for user info and rely on the
+  interceptor for authorization headers.
 * The database driver uses prepared statements throughout (`db.prepare(...?)`)
   which automatically parameterises inputs and protects against SQL
   injection.  Never concatenate user data into SQL strings.

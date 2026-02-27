@@ -1,6 +1,7 @@
 import React from 'react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import api from '../api';
 
 /**
  * Convierte un File a Base64 string.
@@ -17,9 +18,9 @@ const fileToBase64 = (file) =>
 const docsApi = {
     async load(storageKey) {
         try {
-            const res = await fetch(`/api/docs?key=${encodeURIComponent(storageKey)}`);
-            if (res.ok) {
-                const data = await res.json();
+            const res = await api.get('/docs', { params: { key: storageKey } });
+            if (res.status === 200) {
+                const data = res.data;
                 if (data && data.list) {
                     return { source: 'server', data: data.list, metadata: data.metadata };
                 }
@@ -32,11 +33,7 @@ const docsApi = {
 
     async saveMetadata(storageKey, metadataUpdates) {
         try {
-            await fetch('/api/docs-metadata', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: storageKey, ...metadataUpdates }),
-            });
+            await api.post('/docs-metadata', { key: storageKey, ...metadataUpdates });
         } catch (e) {
             console.error('[docsApi] Error actualizando metadata:', e);
         }
@@ -44,11 +41,7 @@ const docsApi = {
 
     async updateDocs(id, updates) {
         try {
-            await fetch(`/api/docs/update?id=${encodeURIComponent(id)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            });
+            await api.post('/docs/update', updates, { params: { id } });
         } catch (e) {
             console.error('[docsApi] Error actualizando documento:', e);
         }
@@ -56,14 +49,13 @@ const docsApi = {
 
     async deleteDoc(id, extra = {}) {
         try {
-            const docsUrl = new URL('/api/docs', window.location.origin);
-            docsUrl.searchParams.set('id', id);
-            if (extra.isClient) docsUrl.searchParams.set('isClient', 'true');
-            if (extra.companyName) docsUrl.searchParams.set('companyName', extra.companyName);
-            if (extra.sectionLabel) docsUrl.searchParams.set('sectionLabel', extra.sectionLabel);
+            const params = { id };
+            if (extra.isClient) params.isClient = true;
+            if (extra.companyName) params.companyName = extra.companyName;
+            if (extra.sectionLabel) params.sectionLabel = extra.sectionLabel;
 
-            const res = await fetch(docsUrl, { method: 'DELETE' });
-            return res.ok;
+            const res = await api.delete('/docs', { params });
+            return res.status === 200;
         } catch (e) {
             console.error('[docsApi] Error eliminando documento:', e);
             return false;
@@ -249,13 +241,9 @@ const useDocumentSection = ({
         filesToUpload.forEach(f => formData.append('file', f));
 
         try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (res.ok) {
-                const result = await res.json();
+            const response = await api.post('/upload', formData);
+            if (response.status === 200) {
+                const result = response.data;
                 if (result.ok) {
                     setList(prev => [...prev, ...result.documents]);
 
@@ -342,8 +330,8 @@ const useDocumentSection = ({
 
         for (const item of filtered) {
             if (item.url) {
-                const response = await fetch(item.url);
-                const blob = await response.blob();
+                const response = await api.get(item.url, { responseType: 'blob' });
+                const blob = response.data;
                 zip.file(item.name, blob);
             }
         }

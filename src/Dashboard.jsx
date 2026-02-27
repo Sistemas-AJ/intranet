@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Menu, Search, SquarePen, Trash2, FilePenLine, Bell } from 'lucide-react';
 
+import api from './api';
 import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
 import CreateUserModal from './CreateUserModal';
@@ -13,8 +14,7 @@ const Dashboard = () => {
     useEffect(() => {
         const sync = async () => {
             try {
-                const res = await fetch('/api/companies');
-                const data = await res.json();
+                const { data } = await api.get('/companies');
                 if (Array.isArray(data)) {
                     setCompanies(data);
                     localStorage.setItem('companies', JSON.stringify(data));
@@ -44,26 +44,22 @@ const Dashboard = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
         navigate('/');
     };
 
     const handleCreateCompany = async (companyData) => {
         try {
             const newCompany = { ...companyData, role: 'client' };
-            const res = await fetch('/api/companies', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newCompany)
-            });
-            if (res.ok) {
+            const res = await api.post('/companies', newCompany);
+            if (res.status >= 200 && res.status < 300) {
                 // Re-fetch everything to stay in sync
-                const syncRes = await fetch('/api/companies');
-                const data = await syncRes.json();
+                const { data } = await api.get('/companies');
                 setCompanies(data);
                 localStorage.setItem('companies', JSON.stringify(data));
                 setIsModalOpen(false);
                 setEditingCompany(null);
-                console.log('%c✅ Usuario guardado en DB', 'color: #059669; font-weight: bold;', companyData);
+                console.log('%c✅ Usuario guardado en DB', 'color: #059669; font-weight: bold;');
             }
         } catch (err) {
             console.error('Error al guardar empresa:', err);
@@ -74,8 +70,8 @@ const Dashboard = () => {
     const handleDeleteCompany = async (ruc) => {
         if (window.confirm('¿Estás seguro de que deseas eliminar esta empresa?')) {
             try {
-                const res = await fetch(`/api/companies/${ruc}`, { method: 'DELETE' });
-                if (res.ok) {
+                const res = await api.delete(`/companies/${ruc}`);
+                if (res.status >= 200 && res.status < 300) {
                     const updated = companies.filter(c => c.ruc !== ruc);
                     setCompanies(updated);
                     localStorage.setItem('companies', JSON.stringify(updated));

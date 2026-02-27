@@ -9,6 +9,7 @@ import logo from './assets/LogoSolo.png';
 import bgImage from './assets/bg-accountants.png';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import api from './api';
 
 import useDocumentSection from './hooks/useDocumentSection';
 import DocumentSection from './components/DocumentSection';
@@ -48,8 +49,8 @@ const DeclaracionesMensualesSection = ({ isClient, ruc, hook }) => {
             for (const doc of allDocs) {
                 if (doc.url && doc.name && doc.month) {
                     const folder = zip.folder(doc.month);
-                    const response = await fetch(doc.url);
-                    const blob = await response.blob();
+                    const response = await api.get(doc.url, { responseType: 'blob' });
+                    const blob = response.data;
                     folder.file(doc.name, blob);
                 }
             }
@@ -392,8 +393,8 @@ const CompanyDashboard = () => {
             for (const doc of allDocs) {
                 if (doc.url && doc.name && doc.year && doc.month) {
                     const folder = zip.folder(doc.year).folder(doc.month);
-                    const response = await fetch(doc.url);
-                    const blob = await response.blob();
+                    const response = await api.get(doc.url, { responseType: 'blob' });
+                    const blob = response.data;
                     folder.file(doc.name, blob);
                 }
             }
@@ -415,8 +416,8 @@ const CompanyDashboard = () => {
             for (const doc of allDocs) {
                 if (doc.url && doc.name && doc.year && doc.month) {
                     const folder = zip.folder(doc.year).folder(doc.month);
-                    const response = await fetch(doc.url);
-                    const blob = await response.blob();
+                    const response = await api.get(doc.url, { responseType: 'blob' });
+                    const blob = response.data;
                     folder.file(doc.name, blob);
                 }
             }
@@ -432,9 +433,9 @@ const CompanyDashboard = () => {
     React.useEffect(() => {
         const fetchCompany = async () => {
             try {
-                const res = await fetch(`/api/companies?ruc=${ruc}`);
-                if (res.ok) {
-                    const data = await res.json();
+                const res = await api.get('/companies', { params: { ruc } });
+                if (res.status === 200) {
+                    const data = res.data;
                     setCompany(data);
                     // Actualizar caché local
                     const saved = JSON.parse(localStorage.getItem('companies') || '[]');
@@ -457,8 +458,11 @@ const CompanyDashboard = () => {
     }, [ruc]);
 
     const handleLogout = () => {
-        if (isClient) { localStorage.removeItem('currentUser'); navigate('/'); }
-        else navigate('/dashboard');
+        if (isClient) { localStorage.removeItem('currentUser'); localStorage.removeItem('authToken'); navigate('/'); }
+        else {
+            localStorage.removeItem('authToken');
+            navigate('/dashboard');
+        }
     };
 
     // ── Descargar TODOS los documentos del cliente en ZIP organizado por carpetas ──
@@ -496,8 +500,8 @@ const CompanyDashboard = () => {
                         const docs = JSON.parse(saved);
                         for (const doc of docs) {
                             if (doc.url && doc.name) {
-                                const response = await fetch(doc.url);
-                                const blob = await response.blob();
+                                const response = await api.get(doc.url, { responseType: 'blob' });
+                                const blob = response.data;
                                 const subFolder = doc.year ? `${folderName}/${doc.year}` : folderName;
                                 zip.file(`${subFolder}/${doc.name}`, blob);
                                 totalFiles++;
@@ -518,8 +522,8 @@ const CompanyDashboard = () => {
                     for (const [permKey, fileData] of Object.entries(genericFiles)) {
                         if (fileData && fileData.url && fileData.name) {
                             const folderName = permissionConfig[permKey]?.label || permKey;
-                            const response = await fetch(fileData.url);
-                            const blob = await response.blob();
+                            const response = await api.get(fileData.url, { responseType: 'blob' });
+                            const blob = response.data;
                             zip.file(`${folderName}/${fileData.name}`, blob);
                             totalFiles++;
                         }
