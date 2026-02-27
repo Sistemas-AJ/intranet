@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 try {
-    const dbPath = path.resolve('data/database.sqlite');
+    const dbPath = path.resolve('data/qlite');
     console.log('DB Path:', dbPath);
     const db = new Database(dbPath);
     let output = '';

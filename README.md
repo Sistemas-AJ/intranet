@@ -14,3 +14,19 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+---
+
+## Server configuration
+
+The backend reads several values from environment variables so that
+credentials and paths aren’t hard‑coded in `server.js`.
+
+1. Copy `.env.example` to `.env` and edit values as needed.
+2. `config.js` exposes constants like `DB_PATH`, `ADMIN_USUARIO`,
+   `ALLOWED_ORIGINS`, etc., which are consumed by the server.
+3. You may change the database file name by setting `DB_FILE`.
+
+By centralizing configuration in `.env`/`config.js`, you avoid the
+“locura” of scattering constants throughout the codebase and make
+production deployment safer.

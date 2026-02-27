@@ -7,6 +7,18 @@ import helmet from 'helmet';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 
+// load configuration constants (dotenv is handled inside config.js)
+import {
+  PORT,
+  CLIENTES_DIR,
+  DB_DIR,
+  DB_PATH,
+  DIST_DIR,
+  ADMIN_USUARIO,
+  ADMIN_CONTRASENA,
+  ALLOWED_ORIGINS,
+} from './config.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -36,10 +48,7 @@ app.use(
     })
 );
 
-// CORS: only allow your own frontend origin in production
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
-    .split(',')
-    .map((o) => o.trim());
+// CORS: allowed origins are configured via config.js/.env (imported above)
 
 app.use(
     cors({
@@ -61,10 +70,9 @@ app.use(express.json());
 
 // ── PATHS & DATABASE ─────────────────────────────────────────────────────────
 
-const CLIENTES_DIR = path.resolve(__dirname, 'clientes');
-const DB_DIR = path.join(__dirname, 'data');
-const DB_PATH = path.join(DB_DIR, 'database.sqlite');
-const DIST_DIR = path.join(__dirname, 'dist');
+// directories and file paths are defined in config.js so they can be
+// controlled via a single .env / config file rather than sprinkled
+// throughout the codebase.
 
 if (!fs.existsSync(CLIENTES_DIR)) fs.mkdirSync(CLIENTES_DIR, { recursive: true });
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
@@ -215,12 +223,10 @@ const upload = multer({
 });
 
 // ── SEED ADMIN ───────────────────────────────────────────────────────────────
-// Guarantees the admin account always exists in the DB.
-// To change the admin password: update it here once, it will be updated on
-// next server start.  NEVER store this in a JSON file that gets bundled.
+// Guarantees the admin account always exists in the DB.  Credentials are
+// pulled from configuration (environment) so that they are not hard‑coded
+// inside the server source.
 (function seedAdmin() {
-    const ADMIN_USUARIO = process.env.ADMIN_USUARIO || 'AJADMINISTRADOR';
-    const ADMIN_CONTRASENA = process.env.ADMIN_CONTRASENA || '197720';
     db.prepare(`
     INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
     VALUES ('ADMIN', 'Administrador', ?, ?, 'admin', '{}')
@@ -552,4 +558,5 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, () => {
     console.log(`✅ Servidor listo en http://localhost:${PORT}  [modo: ${process.env.NODE_ENV || 'development'}]`);
+    console.log(`   db path: ${DB_PATH}`);
 });
