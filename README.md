@@ -40,6 +40,12 @@ has been removed.  The Vite server now proxies `/api` to the real
 backend (`VITE_API_URL`), so behavior during development closely matches
 production and authentication is enforced.
 
+**Important:** `npm run dev` only starts the **frontend** (Vite). the
+backend (Express) must be started separately—e.g. in another terminal run
+`npm run start` or `node server.js`.  If the backend isn’t listening you’ll
+see proxy errors like `connect ECONNREFUSED 127.0.0.1:3000` and the
+browser will log “error de servidor 500” when calls fail.
+
 Because the frontend is served by Vite during development, the Express
 server no longer attempts to serve the `dist` directory unless it actually
 exists (or when `NODE_ENV` is `production`).  This avoids noisy `ENOENT`
