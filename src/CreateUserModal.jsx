@@ -88,11 +88,19 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Validar unicidad de RUC (solo si no es edición o si el RUC cambió)
+        // Validar unicidad de RUC y de usuario (solo si no es edición o si el campo cambió)
         if (!isEdit || (initialData && formData.ruc !== initialData.ruc)) {
             const rucExists = existingCompanies.some(c => c.ruc === formData.ruc);
             if (rucExists) {
                 alert('Este RUC ya esta registrado');
+                return;
+            }
+        }
+
+        if (!isEdit || (initialData && formData.usuario !== initialData.usuario)) {
+            const userExists = existingCompanies.some(c => c.usuario === formData.usuario);
+            if (userExists) {
+                alert('Este nombre de usuario ya esta en uso');
                 return;
             }
         }
