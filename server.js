@@ -6,6 +6,8 @@ import multer from 'multer';
 import helmet from 'helmet';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 // load configuration constants (dotenv is handled inside config.js)
 import {
@@ -17,6 +19,8 @@ import {
   ADMIN_USUARIO,
   ADMIN_CONTRASENA,
   ALLOWED_ORIGINS,
+  JWT_SECRET,
+  SALT_ROUNDS,
 } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,7 +29,7 @@ const __dirname = path.dirname(__filename);
 // ── APP ──────────────────────────────────────────────────────────────────────
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// PORT is imported from config.js, which already handles process.env fallback
 
 // ── SECURITY MIDDLEWARE ──────────────────────────────────────────────────────
 
@@ -78,6 +82,10 @@ if (!fs.existsSync(CLIENTES_DIR)) fs.mkdirSync(CLIENTES_DIR, { recursive: true }
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
+// we will use parameterised/prepared statements ("?" placeholders) everywhere
+// below; better-sqlite3 ensures inputs are bound rather than concatenated,
+// which effectively prevents SQL injection.  Do **not** build dynamic SQL
+// by string interpolation with user-supplied data.
 db.pragma('journal_mode = WAL');
 
 db.exec(`
@@ -155,11 +163,18 @@ function removeEmptyParents(filePath, stopDir) {
  */
 function requireRole(...roles) {
     return (req, res, next) => {
-        const ruc = req.headers['x-ruc'] || req.query.ruc || req.body?.ruc;
-        const role = (req.headers['x-role'] || '').toLowerCase();
+        // prefer JWT if present
+        let role, ruc;
+        if (req.user) {
+            role = req.user.role;
+            ruc = req.user.ruc;
+        } else {
+            role = (req.headers['x-role'] || '').toLowerCase();
+            ruc = req.headers['x-ruc'] || req.query.ruc || req.body?.ruc;
+        }
 
         if (!ruc || !role) {
-            return res.status(401).json({ error: 'Autenticación requerida (falta x-ruc o x-role)' });
+            return res.status(401).json({ error: 'Autenticación requerida' });
         }
 
         // Verify against the DB — never trust just the header alone
@@ -223,22 +238,47 @@ const upload = multer({
 });
 
 // ── SEED ADMIN ───────────────────────────────────────────────────────────────
-// Guarantees the admin account always exists in the DB.  Credentials are
-// pulled from configuration (environment) so that they are not hard‑coded
-// inside the server source.
+// Guarantees the admin account always exists in the DB.  Passwords are
+// stored hashed using bcrypt.
 (function seedAdmin() {
+    const hash = bcrypt.hashSync(ADMIN_CONTRASENA, SALT_ROUNDS);
     db.prepare(`
     INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
     VALUES ('ADMIN', 'Administrador', ?, ?, 'admin', '{}')
     ON CONFLICT(ruc) DO UPDATE SET
       usuario    = excluded.usuario,
       contrasena = excluded.contrasena
-  `).run(ADMIN_USUARIO, ADMIN_CONTRASENA);
+  `).run(ADMIN_USUARIO, hash);
 })();
 
 // ── API ROUTES ───────────────────────────────────────────────────────────────
 
-// -- Login (public — validates credentials, returns safe user object) --
+// -- Authentication helpers ------------------------------------------------
+
+function generateToken(user) {
+    // include minimal info; role/ruc allow authorization checks later
+    return jwt.sign({ ruc: user.ruc, role: user.role || 'client', usuario: user.usuario }, JWT_SECRET, {
+        expiresIn: '8h',
+    });
+}
+
+function authenticateToken(req, res, next) {
+    const auth = req.headers['authorization'];
+    if (!auth) return res.status(401).json({ error: 'Token requerido' });
+    const parts = auth.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+        return res.status(401).json({ error: 'Formato de token inválido' });
+    }
+    try {
+        const payload = jwt.verify(parts[1], JWT_SECRET);
+        req.user = payload;
+        next();
+    } catch (e) {
+        return res.status(401).json({ error: 'Token inválido' });
+    }
+}
+
+// -- Login (public — validates credentials, returns safe user object + token) --
 
 app.post('/api/login', (req, res) => {
     const { usuario, contrasena } = req.body || {};
@@ -246,26 +286,33 @@ app.post('/api/login', (req, res) => {
         return res.status(400).json({ error: 'Faltan credenciales' });
     }
     try {
-        const user = db
-            .prepare('SELECT * FROM companies WHERE usuario = ? AND contrasena = ?')
-            .get(String(usuario), String(contrasena));
-
+        const user = db.prepare('SELECT * FROM companies WHERE usuario = ?').get(String(usuario));
         if (!user) {
             return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
         }
+        if (!bcrypt.compareSync(contrasena, user.contrasena)) {
+            // if stored password is plain text (migration from older version),
+            // allow login and rehash automatically
+            if (user.contrasena === contrasena) {
+                const newHash = bcrypt.hashSync(contrasena, SALT_ROUNDS);
+                db.prepare('UPDATE companies SET contrasena = ? WHERE ruc = ?').run(newHash, user.ruc);
+            } else {
+                return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+            }
+        }
 
-        // Return ONLY safe fields — password never leaves the server
-        res.json({
-            ok: true,
-            user: {
-                ruc: user.ruc,
-                razonSocial: user.razonSocial,
-                usuario: user.usuario,
-                role: user.role || 'client',
-                permissions: JSON.parse(user.permissions || '{}'),
-            },
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        const safe = {
+            ruc: user.ruc,
+            razonSocial: user.razonSocial,
+            usuario: user.usuario,
+            role: user.role || 'client',
+            permissions: JSON.parse(user.permissions || '{}'),
+        };
+        const token = generateToken(user);
+        res.json({ ok: true, user: safe, token });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // -- Companies (admin only for write; read is public but strips contrasena) --
@@ -294,6 +341,10 @@ app.get('/api/companies', (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// require token on all state‑changing endpoints to encourage client
+// supplying a bearer token instead of custom headers
+app.use('/api', authenticateToken);
+
 app.post('/api/companies', requireRole('admin'), (req, res) => {
     const list = Array.isArray(req.body) ? req.body : (req.body.companies ? req.body.companies : [req.body]);
     try {
@@ -310,9 +361,13 @@ app.post('/api/companies', requireRole('admin'), (req, res) => {
         const tx = db.transaction((items) => {
             for (const item of items) {
                 if (!item.ruc) continue;
+                const hashed = item.contrasena
+                    ? bcrypt.hashSync(String(item.contrasena), SALT_ROUNDS)
+                    : undefined;
                 insert.run(
                     String(item.ruc), item.razonSocial, item.usuario,
-                    item.contrasena, item.role || 'client',
+                    hashed || item.contrasena || '',
+                    item.role || 'client',
                     JSON.stringify(item.permissions || {})
                 );
             }
@@ -505,8 +560,18 @@ app.post('/api/docs/update', requireRole('admin'), (req, res) => {
     try {
         const entries = Object.entries(req.body);
         if (id && entries.length > 0) {
-            const set = entries.map(([k]) => `${k} = ?`).join(', ');
-            const vals = entries.map(([_, v]) => (typeof v === 'boolean' ? (v ? 1 : 0) : v));
+            // whitelist known document columns to avoid injection via keys
+            const allowed = new Set([
+                'ruc','section','year','month','name','url','type',
+                'description','adminComment','isNonDeducible','uploadedBy',
+                'seenByAdmin','seenByClient','timestamp',
+            ]);
+            const safe = entries.filter(([k]) => allowed.has(k));
+            if (safe.length === 0) {
+                return res.status(400).json({ error: 'No fields actualizables proporcionados' });
+            }
+            const set = safe.map(([k]) => `${k} = ?`).join(', ');
+            const vals = safe.map(([_, v]) => (typeof v === 'boolean' ? (v ? 1 : 0) : v));
             db.prepare(`UPDATE documents SET ${set} WHERE id = ?`).run(...vals, id);
         }
         res.json({ ok: true });

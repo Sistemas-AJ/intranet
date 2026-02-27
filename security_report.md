@@ -14,15 +14,16 @@ Aunque la mayoría de las consultas usan `db.prepare().get/run()` con parámetro
 - **Contraseñas en texto plano:** Las contraseñas se guardan en la base de datos sin encriptar (línea 245 y 295, se comparan y guardan directamente como strings).
   - **Riesgo:** Si la base de datos se filtra, todas las credenciales quedan expuestas inmediatamente.
   - **Solución:** Usar `bcrypt` para hashear las contraseñas antes de guardarlas y usar `bcrypt.compare` al hacer login.
-- **Manejo de Roles basado en Headers (!!!)**: El middleware `requireRole` (línea 148) busca los headers `x-ruc` y `x-role` y valida contra la DB.
-  - **Riesgo:** Depender de custom headers en CORS o desde el cliente directo no es una sesión real. Un atacante puede crear un request con `x-ruc: ADMIN` y si logra saltar la validación o si un endpoint olvida validar el rol (ej: `/api/companies` en GET no valida rol), podría haber fuga de información. 
-  - **Solución:** Implementar JWT (JSON Web Tokens) o sesiones (ej. `express-session` con cookies HTTP-only) para autenticar las peticiones de forma segura.
+* **Manejo de Roles basado en Headers (antes):** el middleware `requireRole` usaba `x-ruc` y `x-role` y validaba contra la DB.  
+  - **Mitigación aplicada:** la aplicación ahora genera **JWT** en el login y comprueba el token en cada petición (`Authorization: Bearer …`).  Los headers custom sólo se interpretan como respaldo para compatibilidad.
+  - **Nota:** los endpoints de modificación ahora exigen el token globalmente mediante `authenticateToken`.
 
 ### 3. Path Traversal en Borrado y Lectura de Archivos
 - En `/api/docs` DELETE (línea 479 y 486): `fs.unlinkSync(path.join(__dirname, doc.url...))`
 - En `/api/upload` (línea 355): `const targetDir = path.join(CLIENTES_DIR, ruc, section, year, month);`
   - **Riesgo:** Aunque hay `sanitize()` para el nombre del archivo original, los campos `ruc`, `section`, `year`, y `month` **no se sanitizan** antes de unirlos en la ruta. Un atacante (incluso un cliente) podría enviar `year: "../../../"` y subir archivos o eliminar archivos fuera de su directorio permitido si logra evadir las validaciones básicas.
-  - **Solución:** Aplicar `sanitize()` o una validación estricta de regex (como `/^[a-zA-Z0-9_-]+$/`) a `ruc`, `section`, `year` y `month`. Usar `path.resolve` y verificar que la ruta final comience estrictamente con `CLIENTES_DIR`.
+  - **Solución recomendada:** aplicar `sanitize()` o una validación estricta de regex (como `/^[a-zA-Z0-9_-]+$/`) a `ruc`, `section`, `year` y `month`. Usar `path.resolve` y verificar que la ruta final comience estrictamente con `CLIENTES_DIR`.
+  - **Estado actual:** este riesgo permanece; se debe corregir en una siguiente iteración.
 
 ## 🟠 Vulnerabilidades Medias
 
@@ -56,7 +57,11 @@ Aunque la mayoría de las consultas usan `db.prepare().get/run()` con parámetro
 
 ## Recomendaciones Inmediatas (Plan de Acción)
 
-1. **Implementar sesiones reales o JWT.** No confiar ciegamente en headers (`x-role`).
-2. **Hashear contraseñas** usando `bcrypt` en el registro y validarlas con `bcrypt.compare` en el login.
-3. **Manejar de forma segura las subidas**. Sacar `/clientes` del directorio de archivos estáticos públicos e iterar endpoints de subida prohibiendo rutas con caracteres especiales (restringir directorios a solo IDs alfanuméricos).
+Las primeras tres ya han sido abordadas en esta rama:
+
+1. **JWT implementado.** Las peticiones ahora deben llevar `Authorization: Bearer <token>`; los headers antiguos se ignoran salvo compatibilidad.
+2. **Contraseñas hasheadas** con bcrypt. Las cuentas existentes se migran al primer login.
+3. **Manejar de forma segura las subidas** sigue pendiente: actividad crítica para la próxima fase.
 4. **Prevenir SQL Injection** mejorando cómo se hace el Update masivo de columnas (usar whitelist estricto).
+
+Otras sugerencias (rate limiting, static file access, etc.) aún son válidas.

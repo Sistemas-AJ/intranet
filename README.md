@@ -30,3 +30,18 @@ credentials and paths aren’t hard‑coded in `server.js`.
 By centralizing configuration in `.env`/`config.js`, you avoid the
 “locura” of scattering constants throughout the codebase and make
 production deployment safer.
+
+### Security enhancements
+
+* Passwords are now **hashed with bcrypt** (configurable salt rounds) instead
+  of stored in plain text.  All writes to `companies.contrasena` are hashed
+  automatically by the server.
+* `POST /api/login` issues a **JWT bearer token** which the client must send
+  in the `Authorization: Bearer <token>` header on subsequent requests.  This
+  replaces the old `x-role`/`x-ruc` header scheme while remaining compatible.
+* The database driver uses prepared statements throughout (`db.prepare(...?)`)
+  which automatically parameterises inputs and protects against SQL
+  injection.  Never concatenate user data into SQL strings.
+
+Make sure to set a strong `JWT_SECRET` in production and never commit it to
+source control.
