@@ -238,8 +238,51 @@ const CompanyDashboard = () => {
     });
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
+    // keep the company list in sync with the server just like Dashboard
+    React.useEffect(() => {
+        const sync = async () => {
+            try {
+                const { data } = await api.get('/companies');
+                if (Array.isArray(data)) {
+                    setCompanies(data);
+                    localStorage.setItem('companies', JSON.stringify(data));
+                }
+            } catch (err) {
+                console.error('Error sincronizando empresas:', err);
+                const saved = localStorage.getItem('companies');
+                if (saved) setCompanies(JSON.parse(saved));
+            }
+        };
+        sync();
+    }, []);
+
     const [company, setCompany] = React.useState(null);
     const [selectedPermission, setSelectedPermission] = React.useState(null);
+
+    // helpers for sidebar actions (admin only)
+    const handleEditClick = (company) => {
+        // navigate back to dashboard and open edit modal
+        navigate('/', { state: { editCompany: company } });
+    };
+
+    const handleDeleteCompany = async (ruc) => {
+        if (window.confirm('¿Estás seguro de que deseas eliminar esta empresa?')) {
+            try {
+                const res = await api.delete(`/companies/${ruc}`);
+                if (res.status >= 200 && res.status < 300) {
+                    const updated = companies.filter(c => c.ruc !== ruc);
+                    setCompanies(updated);
+                    localStorage.setItem('companies', JSON.stringify(updated));
+                    // if we deleted the current company, go back to dashboard
+                    if (ruc === company?.ruc) {
+                        navigate('/');
+                    }
+                }
+            } catch (err) {
+                console.error('Error al eliminar:', err);
+            }
+        }
+    };
 
     // ─── Lógica de Alerta de Vencimiento ─────────────────────────────────────
     const getDigitGroup = (r) => {
@@ -875,6 +918,8 @@ const CompanyDashboard = () => {
                 onClose={() => setIsSidebarOpen(false)}
                 companies={companies}
                 onCompanyClick={(c) => navigate(`/company/${c.ruc}`)}
+                onEditClick={handleEditClick}
+                onDeleteCompany={handleDeleteCompany}
             />
 
             {/* Main */}

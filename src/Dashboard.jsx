@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User, LogOut, Menu } from 'lucide-react';
 
 import api from './api';
@@ -34,6 +34,17 @@ const Dashboard = () => {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState(null);
+    const location = useLocation();
+
+    // if another view navigates us here with an edit request, open the modal
+    useEffect(() => {
+        if (location.state && location.state.editCompany) {
+            setEditingCompany(location.state.editCompany);
+            setIsModalOpen(true);
+            // clear state so it doesn't reopen on back/refresh
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location]);
     const navigate = useNavigate();
 
     const handleLogout = () => {
