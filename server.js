@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import Database from 'better-sqlite3';
 import multer from 'multer';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -82,14 +81,59 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 if (!fs.existsSync(CLIENTES_DIR)) fs.mkdirSync(CLIENTES_DIR, { recursive: true });
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
-const db = new Database(DB_PATH);
-// we will use parameterised/prepared statements ("?" placeholders) everywhere
-// below; better-sqlite3 ensures inputs are bound rather than concatenated,
-// which effectively prevents SQL injection.  Do **not** build dynamic SQL
-// by string interpolation with user-supplied data.
-db.pragma('journal_mode = WAL');
+// database abstraction handles either SQLite or Postgres depending on
+// DATABASE_URL (see config.js).  right now we default to sqlite; later
+// the `USE_POSTGRES` flag will turn on pg behaviour.
+import db, { exec } from './db.js';
+import { USE_POSTGRES } from './config.js';
 
-db.exec(`
+async function initDb() {
+    if (USE_POSTGRES) {
+        // create tables with syntax acceptable to Postgres; we use SERIAL
+        // for the auto-incrementing primary key and BOOLEAN for bit flags.
+        await exec(`
+  CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    storageKey TEXT,
+    ruc TEXT,
+    section TEXT,
+    year TEXT,
+    month TEXT,
+    name TEXT,
+    url TEXT,
+    type TEXT,
+    description TEXT,
+    adminComment TEXT,
+    isNonDeducible BOOLEAN,
+    uploadedBy TEXT,
+    seenByAdmin BOOLEAN,
+    seenByClient BOOLEAN,
+    timestamp TEXT
+  );
+  CREATE TABLE IF NOT EXISTS metadata (
+    storageKey TEXT PRIMARY KEY,
+    unreadForAdmin BOOLEAN,
+    unreadForClient BOOLEAN,
+    events TEXT
+  );
+  CREATE TABLE IF NOT EXISTS history_logs (
+    id SERIAL PRIMARY KEY,
+    action TEXT,
+    details TEXT,
+    timestamp TEXT
+  );
+  CREATE TABLE IF NOT EXISTS companies (
+    ruc TEXT PRIMARY KEY,
+    razonSocial TEXT,
+    usuario TEXT,
+    contrasena TEXT,
+    role TEXT,
+    permissions TEXT
+  );
+`);
+    } else {
+        // existing sqlite initialization
+        exec(`
   CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     storageKey TEXT,
@@ -129,6 +173,15 @@ db.exec(`
     permissions TEXT
   );
 `);
+    }
+}
+
+// call initialization and ignore promise (app is fine if it happens
+// in background during startup)
+initDb().catch((err) => {
+    console.error('failed to initialize database', err);
+    process.exit(1);
+});
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 

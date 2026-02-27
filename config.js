@@ -34,3 +34,11 @@ export const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || '10', 10);
 export const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
     .split(',')
     .map((o) => o.trim());
+
+// Database configuration.  By default we use the SQLite file defined above;
+// setting DATABASE_URL to a PostgreSQL connection string will switch to a
+// pool using that URL.  The rest of the code imports `USE_POSTGRES` or
+// `DATABASE_URL` and adapts accordingly.
+export const DATABASE_URL = process.env.DATABASE_URL || '';
+export const USE_POSTGRES = Boolean(process.env.DATABASE_URL);
+

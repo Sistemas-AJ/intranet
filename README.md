@@ -80,3 +80,25 @@ dev mode.
 
 Make sure to set a strong `JWT_SECRET` in production and never commit it to
 source control.
+
+## Containerization (Docker)
+
+A `Dockerfile` and accompanying `docker-compose.yml` allow you to run the
+backend inside a container and, optionally, bring up a Postgres database at
+the same time.  The initial setup still uses SQLite, but the codebase is
+prepared for a smooth transition when you're ready to switch.
+
+```bash
+# build images and launch services
+docker-compose up --build
+
+# - the web service listens on port 3500 (host port 3500 by default)
+# - ./clientes and ./data are mounted into the container so uploads and the
+#   sqlite file persist across restarts
+```
+
+Set any environment variable in a `.env` file or directly in the compose
+`environment:` section.  The `web` service uses `PORT=3500` by default; to
+start using Postgres simply add a `DATABASE_URL` value such as
+`postgres://user:pass@db:5432/intranet` and the helper in `db.js` will
+activate the pg pool.
