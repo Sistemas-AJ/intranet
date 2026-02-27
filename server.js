@@ -324,10 +324,30 @@ function safeCompany(c) {
     return safe;
 }
 
+// NOTE: GET /api/companies used to be public, but exposing a list of
+// all firms without authentication is a privacy risk.  Now the route is
+// protected by authenticateToken (see placement below) and applies a few
+// extra checks:
+//   * clients may only fetch their own record
+//   * listing all companies requires admin role
+
+// the actual handler remains defined later after the global middleware
+
+// require token on all /api requests (login is defined earlier and
+// therefore remains open).  placing the middleware here means that every
+// handler declared after this line will receive a valid JWT payload in
+// `req.user`.
+app.use('/api', authenticateToken);
+
+// authenticated company listing
 app.get('/api/companies', (req, res) => {
     const ruc = req.query.ruc;
     try {
         if (ruc) {
+            // clients may only look up their own RUC
+            if (req.user.role === 'client' && req.user.ruc !== ruc) {
+                return res.status(403).json({ error: 'No autorizado para ese RUC' });
+            }
             const company = db.prepare('SELECT * FROM companies WHERE ruc = ?').get(ruc);
             if (company) {
                 res.json(safeCompany(company));
@@ -335,15 +355,15 @@ app.get('/api/companies', (req, res) => {
                 res.status(404).json({ error: 'No encontrado' });
             }
         } else {
+            // only admin may list all companies
+            if (req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'Solo administradores pueden listar todas las empresas' });
+            }
             const list = db.prepare('SELECT * FROM companies').all();
             res.json(list.map(safeCompany));
         }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
-// require token on all state‑changing endpoints to encourage client
-// supplying a bearer token instead of custom headers
-app.use('/api', authenticateToken);
 
 app.post('/api/companies', requireRole('admin'), (req, res) => {
     const list = Array.isArray(req.body) ? req.body : (req.body.companies ? req.body.companies : [req.body]);

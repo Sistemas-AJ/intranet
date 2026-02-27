@@ -16,7 +16,7 @@ Aunque la mayoría de las consultas usan `db.prepare().get/run()` con parámetro
   - **Solución:** Usar `bcrypt` para hashear las contraseñas antes de guardarlas y usar `bcrypt.compare` al hacer login.
 * **Manejo de Roles basado en Headers (antes):** el middleware `requireRole` usaba `x-ruc` y `x-role` y validaba contra la DB.  
   - **Mitigación aplicada:** la aplicación ahora genera **JWT** en el login y comprueba el token en cada petición (`Authorization: Bearer …`).  Los headers custom sólo se interpretan como respaldo para compatibilidad.
-  - **Nota:** los endpoints de modificación ahora exigen el token globalmente mediante `authenticateToken`.
+  - **Nota:** los endpoints de modificación ahora exigen el token globalmente mediante `authenticateToken`.  Además, **/api/companies pasó de ser público a requerir autenticación**; los clientes solo pueden solicitar su propio RUC y la lista completa queda reservada a administradores.
 
 ### 3. Path Traversal en Borrado y Lectura de Archivos
 - En `/api/docs` DELETE (línea 479 y 486): `fs.unlinkSync(path.join(__dirname, doc.url...))`
@@ -65,3 +65,9 @@ Las primeras tres ya han sido abordadas en esta rama:
 4. **Prevenir SQL Injection** mejorando cómo se hace el Update masivo de columnas (usar whitelist estricto).
 
 Otras sugerencias (rate limiting, static file access, etc.) aún son válidas.
+
+* Durante el desarrollo se usaba un `vite-plugin-clientes.js` que respondía
+a `/api/companies` sin ninguna autenticación.  Este plugin fue retirado y
+ahora Vite hace proxy a `VITE_API_URL` (normalmente `http://localhost:3000`),
+por lo que el comportamiento de dev coincide con producción y no hay acceso
+abierto desde pestañas privadas.
