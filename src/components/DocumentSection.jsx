@@ -459,7 +459,14 @@ const DocumentSection = ({
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <a href={item.url} download={item.name} style={{ color: '#64748b', display: 'flex' }} title="Descargar">
+                                        <a
+                                            href={item.url}
+                                            download={item.name}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{ color: '#64748b', display: 'flex' }}
+                                            title="Descargar"
+                                        >
                                             <Download size={20} />
                                         </a>
 
@@ -552,7 +559,10 @@ const DocumentSection = ({
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <a
-                                href={expandedDoc.url} download={expandedDoc.name}
+                                href={expandedDoc.url}
+                                download={expandedDoc.name}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: '6px',
                                     backgroundColor: 'var(--color-aj-red)', color: 'white',
