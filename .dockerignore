@@ -1,0 +1,8 @@
+# ignore node_modules from host so we don't overwrite container-built deps
+node_modules
+
+# build artifacts, local state
+dist
+data
+clientes
+.env

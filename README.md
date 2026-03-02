@@ -88,6 +88,13 @@ backend inside a container and, optionally, bring up a Postgres database at
 the same time.  The initial setup still uses SQLite, but the codebase is
 prepared for a smooth transition when you're ready to switch.
 
+> **Nota**: la imagen original usaba `node:alpine` para ser pequeña,
+> pero ese musl‑based image no incluye `glibc` y el módulo nativo
+> `better‑sqlite3` falla con `ld-linux-x86-64.so.2 missing`.  Por ello
+> el `Dockerfile` se cambió a `node:20-slim` (deb-based) que trae el
+> runtime estándar y evita ese problema.  Si prefieres una base Alpine,
+> tendrás que instalar `gcompat` o compilar el módulo desde cero.
+
 ```bash
 # build images and launch services
 docker-compose up --build

@@ -14,12 +14,14 @@ import {
   CLIENTES_DIR,
   DB_DIR,
   DB_PATH,
+  DATABASE_URL,
   DIST_DIR,
   ADMIN_USUARIO,
   ADMIN_CONTRASENA,
   ALLOWED_ORIGINS,
   JWT_SECRET,
   SALT_ROUNDS,
+  USE_POSTGRES,
 } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,11 +83,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 if (!fs.existsSync(CLIENTES_DIR)) fs.mkdirSync(CLIENTES_DIR, { recursive: true });
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
-// database abstraction handles either SQLite or Postgres depending on
-// DATABASE_URL (see config.js).  right now we default to sqlite; later
-// the `USE_POSTGRES` flag will turn on pg behaviour.
 import db, { exec } from './db.js';
-import { USE_POSTGRES } from './config.js';
 
 async function initDb() {
     if (USE_POSTGRES) {
@@ -133,7 +131,7 @@ async function initDb() {
 `);
     } else {
         // existing sqlite initialization
-        exec(`
+        await exec(`
   CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     storageKey TEXT,
@@ -176,13 +174,6 @@ async function initDb() {
     }
 }
 
-// call initialization and ignore promise (app is fine if it happens
-// in background during startup)
-initDb().catch((err) => {
-    console.error('failed to initialize database', err);
-    process.exit(1);
-});
-
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
 function sanitize(name) {
@@ -201,6 +192,20 @@ function removeEmptyParents(filePath, stopDir) {
     }
 }
 
+function toDbBoolean(value) {
+    return USE_POSTGRES ? Boolean(value) : (value ? 1 : 0);
+}
+
+function fromDbBoolean(value) {
+    return value === true || value === 1;
+}
+
+function parseJsonField(value, fallback) {
+    if (!value) return fallback;
+    if (typeof value !== 'string') return value;
+    return JSON.parse(value);
+}
+
 // ── ROLE MIDDLEWARE ──────────────────────────────────────────────────────────
 /**
  * requireRole(...roles)
@@ -216,38 +221,40 @@ function removeEmptyParents(filePath, stopDir) {
  *   router.post('/api/upload', requireRole('admin', 'client'), handler)
  */
 function requireRole(...roles) {
-    return (req, res, next) => {
-        // prefer JWT if present
-        let role, ruc;
-        if (req.user) {
-            role = req.user.role;
-            ruc = req.user.ruc;
-        } else {
-            role = (req.headers['x-role'] || '').toLowerCase();
-            ruc = req.headers['x-ruc'] || req.query.ruc || req.body?.ruc;
-        }
+    return async (req, res, next) => {
+        try {
+            let role;
+            let ruc;
+            if (req.user) {
+                role = req.user.role;
+                ruc = req.user.ruc;
+            } else {
+                role = (req.headers['x-role'] || '').toLowerCase();
+                ruc = req.headers['x-ruc'] || req.query.ruc || req.body?.ruc;
+            }
 
-        if (!ruc || !role) {
-            return res.status(401).json({ error: 'Autenticación requerida' });
-        }
+            if (!ruc || !role) {
+                return res.status(401).json({ error: 'Autenticación requerida' });
+            }
 
-        // Verify against the DB — never trust just the header alone
-        const company = db.prepare('SELECT role FROM companies WHERE ruc = ?').get(String(ruc));
-        if (!company) {
-            return res.status(401).json({ error: 'Empresa no encontrada' });
-        }
-        const dbRole = (company.role || 'client').toLowerCase();
+            const company = await db.get('SELECT role FROM companies WHERE ruc = ?', [String(ruc)]);
+            if (!company) {
+                return res.status(401).json({ error: 'Empresa no encontrada' });
+            }
+            const dbRole = (company.role || 'client').toLowerCase();
 
-        if (!roles.includes(dbRole)) {
-            return res.status(403).json({
-                error: `Acceso denegado. Se requiere rol: ${roles.join(' o ')}. Tu rol: ${dbRole}`,
-            });
-        }
+            if (!roles.includes(dbRole)) {
+                return res.status(403).json({
+                    error: `Acceso denegado. Se requiere rol: ${roles.join(' o ')}. Tu rol: ${dbRole}`,
+                });
+            }
 
-        // Attach for downstream handlers
-        req.userRole = dbRole;
-        req.userRuc = String(ruc);
-        next();
+            req.userRole = dbRole;
+            req.userRuc = String(ruc);
+            next();
+        } catch (error) {
+            next(error);
+        }
     };
 }
 
@@ -292,18 +299,16 @@ const upload = multer({
 });
 
 // ── SEED ADMIN ───────────────────────────────────────────────────────────────
-// Guarantees the admin account always exists in the DB.  Passwords are
-// stored hashed using bcrypt.
-(function seedAdmin() {
+async function seedAdmin() {
     const hash = bcrypt.hashSync(ADMIN_CONTRASENA, SALT_ROUNDS);
-    db.prepare(`
+    await db.run(`
     INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
     VALUES ('ADMIN', 'Administrador', ?, ?, 'admin', '{}')
     ON CONFLICT(ruc) DO UPDATE SET
       usuario    = excluded.usuario,
       contrasena = excluded.contrasena
-  `).run(ADMIN_USUARIO, hash);
-})();
+  `, [ADMIN_USUARIO, hash]);
+}
 
 // ── API ROUTES ───────────────────────────────────────────────────────────────
 
@@ -334,13 +339,13 @@ function authenticateToken(req, res, next) {
 
 // -- Login (public — validates credentials, returns safe user object + token) --
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { usuario, contrasena } = req.body || {};
     if (!usuario || !contrasena) {
         return res.status(400).json({ error: 'Faltan credenciales' });
     }
     try {
-        const user = db.prepare('SELECT * FROM companies WHERE usuario = ?').get(String(usuario));
+        const user = await db.get('SELECT * FROM companies WHERE usuario = ?', [String(usuario)]);
         if (!user) {
             return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
         }
@@ -349,7 +354,7 @@ app.post('/api/login', (req, res) => {
             // allow login and rehash automatically
             if (user.contrasena === contrasena) {
                 const newHash = bcrypt.hashSync(contrasena, SALT_ROUNDS);
-                db.prepare('UPDATE companies SET contrasena = ? WHERE ruc = ?').run(newHash, user.ruc);
+                await db.run('UPDATE companies SET contrasena = ? WHERE ruc = ?', [newHash, user.ruc]);
             } else {
                 return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             }
@@ -360,7 +365,7 @@ app.post('/api/login', (req, res) => {
             razonSocial: user.razonSocial,
             usuario: user.usuario,
             role: user.role || 'client',
-            permissions: JSON.parse(user.permissions || '{}'),
+            permissions: parseJsonField(user.permissions, {}),
         };
         const token = generateToken(user);
         res.json({ ok: true, user: safe, token });
@@ -374,7 +379,7 @@ app.post('/api/login', (req, res) => {
 // Helper: remove password before sending to client
 function safeCompany(c) {
     const { contrasena: _omit, ...safe } = c;
-    safe.permissions = JSON.parse(safe.permissions || '{}');
+    safe.permissions = parseJsonField(safe.permissions, {});
     return safe;
 }
 
@@ -394,7 +399,7 @@ function safeCompany(c) {
 app.use('/api', authenticateToken);
 
 // authenticated company listing
-app.get('/api/companies', (req, res) => {
+app.get('/api/companies', async (req, res) => {
     const ruc = req.query.ruc;
     try {
         if (ruc) {
@@ -402,7 +407,7 @@ app.get('/api/companies', (req, res) => {
             if (req.user.role === 'client' && req.user.ruc !== ruc) {
                 return res.status(403).json({ error: 'No autorizado para ese RUC' });
             }
-            const company = db.prepare('SELECT * FROM companies WHERE ruc = ?').get(ruc);
+            const company = await db.get('SELECT * FROM companies WHERE ruc = ?', [ruc]);
             if (company) {
                 res.json(safeCompany(company));
             } else {
@@ -413,63 +418,64 @@ app.get('/api/companies', (req, res) => {
             if (req.user.role !== 'admin') {
                 return res.status(403).json({ error: 'Solo administradores pueden listar todas las empresas' });
             }
-            const list = db.prepare('SELECT * FROM companies').all();
+            const list = await db.all('SELECT * FROM companies');
             res.json(list.map(safeCompany));
         }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/companies', requireRole('admin'), (req, res) => {
+app.post('/api/companies', requireRole('admin'), async (req, res) => {
     const list = Array.isArray(req.body) ? req.body : (req.body.companies ? req.body.companies : [req.body]);
     try {
-        const insert = db.prepare(`
-      INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(ruc) DO UPDATE SET
-        razonSocial = excluded.razonSocial,
-        usuario     = excluded.usuario,
-        contrasena  = excluded.contrasena,
-        role        = excluded.role,
-        permissions = excluded.permissions
-    `);
-        const tx = db.transaction((items) => {
+        const tx = db.transaction(async (txDb, items) => {
             for (const item of items) {
                 if (!item.ruc) continue;
                 const hashed = item.contrasena
                     ? bcrypt.hashSync(String(item.contrasena), SALT_ROUNDS)
                     : undefined;
-                insert.run(
-                    String(item.ruc), item.razonSocial, item.usuario,
+                await txDb.run(`
+                  INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
+                  VALUES (?, ?, ?, ?, ?, ?)
+                  ON CONFLICT(ruc) DO UPDATE SET
+                    razonSocial = excluded.razonSocial,
+                    usuario     = excluded.usuario,
+                    contrasena  = excluded.contrasena,
+                    role        = excluded.role,
+                    permissions = excluded.permissions
+                `, [
+                    String(item.ruc),
+                    item.razonSocial,
+                    item.usuario,
                     hashed || item.contrasena || '',
                     item.role || 'client',
-                    JSON.stringify(item.permissions || {})
-                );
+                    JSON.stringify(item.permissions || {}),
+                ]);
             }
         });
-        tx(list);
+        await tx(list);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/companies/:ruc', requireRole('admin'), (req, res) => {
+app.delete('/api/companies/:ruc', requireRole('admin'), async (req, res) => {
     try {
-        db.prepare('DELETE FROM companies WHERE ruc = ?').run(req.params.ruc);
+        await db.run('DELETE FROM companies WHERE ruc = ?', [req.params.ruc]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // -- History (admin only) --
 
-app.get('/api/history', requireRole('admin'), (req, res) => {
+app.get('/api/history', requireRole('admin'), async (req, res) => {
     try {
-        const logs = db.prepare('SELECT * FROM history_logs ORDER BY id DESC LIMIT 100').all();
+        const logs = await db.all('SELECT * FROM history_logs ORDER BY id DESC LIMIT 100');
         res.json(logs);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // -- File Upload (admin & client) --
 
-app.post('/api/upload', requireRole('admin', 'client'), upload.array('file'), (req, res) => {
+app.post('/api/upload', requireRole('admin', 'client'), upload.array('file'), async (req, res) => {
     try {
         const { ruc, section, year, month, storageKey } = req.body;
         const extraData = JSON.parse(req.body.extraData || '{}');
@@ -504,37 +510,44 @@ app.post('/api/upload', requireRole('admin', 'client'), upload.array('file'), (r
                 url: publicUrl,
                 type: extraData.type || 'Documento',
                 description: extraData.description || '',
-                isNonDeducible: extraData.isNonDeducible ? 1 : 0,
+                isNonDeducible: toDbBoolean(extraData.isNonDeducible),
                 uploadedBy: extraData.uploadedBy || req.userRole,
-                seenByAdmin: extraData.uploadedBy === 'client' ? 0 : 1,
-                seenByClient: extraData.uploadedBy === 'client' ? 1 : 0,
+                seenByAdmin: toDbBoolean(extraData.uploadedBy !== 'client'),
+                seenByClient: toDbBoolean(extraData.uploadedBy === 'client'),
                 timestamp: new Date().toISOString(),
             };
 
-            db.prepare(`
+            await db.run(`
         INSERT INTO documents
           (id, storageKey, ruc, section, year, month, name, url, type, description,
            isNonDeducible, uploadedBy, seenByAdmin, seenByClient, timestamp)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `).run(
+      `, [
                 doc.id, doc.storageKey, doc.ruc, doc.section, doc.year, doc.month,
                 doc.name, doc.url, doc.type, doc.description,
-                doc.isNonDeducible, doc.uploadedBy, doc.seenByAdmin, doc.seenByClient, doc.timestamp
-            );
+                doc.isNonDeducible, doc.uploadedBy, doc.seenByAdmin, doc.seenByClient, doc.timestamp,
+            ]);
 
             if (doc.uploadedBy === 'client') {
-                const meta = db.prepare('SELECT * FROM metadata WHERE storageKey = ?').get(storageKey);
-                const events = meta ? JSON.parse(meta.events || '[]') : [];
+                const meta = await db.get('SELECT * FROM metadata WHERE storageKey = ?', [storageKey]);
+                const events = meta ? parseJsonField(meta.events, []) : [];
                 events.push({
                     id: Date.now(),
                     message: `${extraData.companyName || ruc} subió: ${file.originalname}`,
                     timestamp: doc.timestamp,
                 });
-                db.prepare(`
+                await db.run(`
           INSERT INTO metadata (storageKey, unreadForAdmin, unreadForClient, events)
-          VALUES (?, 1, 0, ?)
-          ON CONFLICT(storageKey) DO UPDATE SET unreadForAdmin = 1, events = ?
-        `).run(storageKey, JSON.stringify(events), JSON.stringify(events));
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(storageKey) DO UPDATE SET unreadForAdmin = ?, events = ?
+        `, [
+                    storageKey,
+                    toDbBoolean(true),
+                    toDbBoolean(false),
+                    JSON.stringify(events),
+                    toDbBoolean(true),
+                    JSON.stringify(events),
+                ]);
             }
 
             results.push(doc);
@@ -550,7 +563,7 @@ app.post('/api/upload', requireRole('admin', 'client'), upload.array('file'), (r
 
 // -- Docs read (admin & client) --
 
-app.get('/api/docs', requireRole('admin', 'client'), (req, res) => {
+app.get('/api/docs', requireRole('admin', 'client'), async (req, res) => {
     const key = req.query.key;
     if (!key) return res.status(400).json({ error: 'Falta key' });
 
@@ -568,20 +581,20 @@ app.get('/api/docs', requireRole('admin', 'client'), (req, res) => {
     }
 
     try {
-        const docs = db.prepare('SELECT * FROM documents WHERE storageKey = ?').all(key);
-        const meta = db.prepare('SELECT * FROM metadata WHERE storageKey = ?').get(key);
+        const docs = await db.all('SELECT * FROM documents WHERE storageKey = ?', [key]);
+        const meta = await db.get('SELECT * FROM metadata WHERE storageKey = ?', [key]);
         res.json({
             list: docs.map((d) => ({
                 ...d,
-                isNonDeducible: d.isNonDeducible === 1,
-                seenByAdmin: d.seenByAdmin === 1,
-                seenByClient: d.seenByClient === 1,
+                isNonDeducible: fromDbBoolean(d.isNonDeducible),
+                seenByAdmin: fromDbBoolean(d.seenByAdmin),
+                seenByClient: fromDbBoolean(d.seenByClient),
             })),
             metadata: meta
                 ? {
-                    unreadForAdmin: meta.unreadForAdmin === 1,
-                    unreadForClient: meta.unreadForClient === 1,
-                    events: JSON.parse(meta.events || '[]'),
+                    unreadForAdmin: fromDbBoolean(meta.unreadForAdmin),
+                    unreadForClient: fromDbBoolean(meta.unreadForClient),
+                    events: parseJsonField(meta.events, []),
                 }
                 : { unreadForAdmin: false, unreadForClient: false, events: [] },
         });
@@ -590,44 +603,43 @@ app.get('/api/docs', requireRole('admin', 'client'), (req, res) => {
 
 // -- Delete doc(s) --
 
-app.delete('/api/docs', requireRole('admin', 'client'), (req, res) => {
+app.delete('/api/docs', requireRole('admin', 'client'), async (req, res) => {
     const id = req.query.id;
     const key = req.query.key;
 
-    // Clients may only delete their own uploads
-    if (req.userRole === 'client') {
-        if (id) {
-            const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
-            if (doc && doc.ruc !== req.userRuc) {
-                return res.status(403).json({ error: 'No puedes eliminar archivos de otro cliente' });
-            }
-            if (doc && doc.uploadedBy !== 'client') {
-                return res.status(403).json({ error: 'Los clientes no pueden eliminar archivos subidos por el administrador' });
-            }
-        } else if (key) {
-            const parts = key.split('_');
-            const keyRuc = parts[0] === 'docs' ? parts[1] : parts[0];
-            if (keyRuc !== req.userRuc) {
-                return res.status(403).json({ error: 'Acceso denegado' });
+    try {
+        if (req.userRole === 'client') {
+            if (id) {
+                const doc = await db.get('SELECT * FROM documents WHERE id = ?', [id]);
+                if (doc && doc.ruc !== req.userRuc) {
+                    return res.status(403).json({ error: 'No puedes eliminar archivos de otro cliente' });
+                }
+                if (doc && doc.uploadedBy !== 'client') {
+                    return res.status(403).json({ error: 'Los clientes no pueden eliminar archivos subidos por el administrador' });
+                }
+            } else if (key) {
+                const parts = key.split('_');
+                const keyRuc = parts[0] === 'docs' ? parts[1] : parts[0];
+                if (keyRuc !== req.userRuc) {
+                    return res.status(403).json({ error: 'Acceso denegado' });
+                }
             }
         }
-    }
 
-    try {
         if (id) {
-            const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
+            const doc = await db.get('SELECT * FROM documents WHERE id = ?', [id]);
             if (doc) {
                 const p = path.join(__dirname, doc.url.startsWith('/') ? doc.url.substring(1) : doc.url);
                 if (fs.existsSync(p)) { fs.unlinkSync(p); removeEmptyParents(p, CLIENTES_DIR); }
-                db.prepare('DELETE FROM documents WHERE id = ?').run(id);
+                await db.run('DELETE FROM documents WHERE id = ?', [id]);
             }
         } else if (key) {
-            const docs = db.prepare('SELECT * FROM documents WHERE storageKey = ?').all(key);
+            const docs = await db.all('SELECT * FROM documents WHERE storageKey = ?', [key]);
             for (const doc of docs) {
                 const p = path.join(__dirname, doc.url.startsWith('/') ? doc.url.substring(1) : doc.url);
                 if (fs.existsSync(p)) { fs.unlinkSync(p); removeEmptyParents(p, CLIENTES_DIR); }
             }
-            db.prepare('DELETE FROM documents WHERE storageKey = ?').run(key);
+            await db.run('DELETE FROM documents WHERE storageKey = ?', [key]);
         }
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -635,7 +647,7 @@ app.delete('/api/docs', requireRole('admin', 'client'), (req, res) => {
 
 // -- Update doc fields --
 
-app.post('/api/docs/update', requireRole('admin'), (req, res) => {
+app.post('/api/docs/update', requireRole('admin'), async (req, res) => {
     const id = req.query.id;
     try {
         const entries = Object.entries(req.body);
@@ -651,8 +663,8 @@ app.post('/api/docs/update', requireRole('admin'), (req, res) => {
                 return res.status(400).json({ error: 'No fields actualizables proporcionados' });
             }
             const set = safe.map(([k]) => `${k} = ?`).join(', ');
-            const vals = safe.map(([_, v]) => (typeof v === 'boolean' ? (v ? 1 : 0) : v));
-            db.prepare(`UPDATE documents SET ${set} WHERE id = ?`).run(...vals, id);
+            const vals = safe.map(([_, v]) => (typeof v === 'boolean' ? toDbBoolean(v) : v));
+            await db.run(`UPDATE documents SET ${set} WHERE id = ?`, [...vals, id]);
         }
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -660,22 +672,22 @@ app.post('/api/docs/update', requireRole('admin'), (req, res) => {
 
 // -- Metadata update --
 
-app.post('/api/docs-metadata', requireRole('admin', 'client'), (req, res) => {
+app.post('/api/docs-metadata', requireRole('admin', 'client'), async (req, res) => {
     try {
         const { key, unreadForAdmin, unreadForClient, clearEvents } = req.body;
-        db.prepare(`
+        await db.run(`
       UPDATE metadata
       SET
         unreadForAdmin  = COALESCE(?, unreadForAdmin),
         unreadForClient = COALESCE(?, unreadForClient),
-        events = CASE WHEN ? = 1 THEN '[]' ELSE events END
+        events = CASE WHEN ? THEN '[]' ELSE events END
       WHERE storageKey = ?
-    `).run(
-            unreadForAdmin === undefined ? null : (unreadForAdmin ? 1 : 0),
-            unreadForClient === undefined ? null : (unreadForClient ? 1 : 0),
-            clearEvents ? 1 : 0,
-            key
-        );
+    `, [
+            unreadForAdmin === undefined ? null : toDbBoolean(unreadForAdmin),
+            unreadForClient === undefined ? null : toDbBoolean(unreadForClient),
+            USE_POSTGRES ? Boolean(clearEvents) : (clearEvents ? 1 : 0),
+            key,
+        ]);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -706,7 +718,18 @@ app.use((err, _req, res, _next) => {
 
 // ── START ─────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-    console.log(`✅ Servidor listo en http://localhost:${PORT}  [modo: ${process.env.NODE_ENV || 'development'}]`);
-    console.log(`   db path: ${DB_PATH}`);
-});
+async function startServer() {
+    try {
+        await initDb();
+        await seedAdmin();
+        app.listen(PORT, () => {
+            console.log(`✅ Servidor listo en http://localhost:${PORT}  [modo: ${process.env.NODE_ENV || 'development'}]`);
+            console.log(`   db: ${USE_POSTGRES ? DATABASE_URL : DB_PATH}`);
+        });
+    } catch (error) {
+        console.error('failed to initialize database', error);
+        process.exit(1);
+    }
+}
+
+startServer();

@@ -1,21 +1,25 @@
 # simple Node container for the intranet backend
 # builds frontend (optional) and runs the Express server
 
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 WORKDIR /app
 
-# copy package manifests and install dependencies early to take advantage of caching
+# copy package manifests and install all dependencies (including dev)
+# so that we can run the frontend build.  A later step prunes dev deps.
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci
 
-# copy the whole project so the server code (and frontend) is available
+# copy the rest of the application code
 COPY . .
 
 # build frontend assets into /dist so Express can serve them in production
 RUN npm run build
 
+# remove development dependencies before passing to runtime stage
+RUN npm prune --production
+
 # runtime image (could reuse base but we keep it explicit)
-FROM node:20-alpine AS runtime
+FROM node:20-slim AS runtime
 WORKDIR /app
 
 # copy over node modules and built code

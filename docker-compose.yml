@@ -3,6 +3,7 @@ version: '3.9'
 services:
   web:
     build: .
+    restart: unless-stopped
     ports:
       - "3500:3500"
     volumes:
@@ -10,14 +11,11 @@ services:
       - ./data:/app/data
     environment:
       - PORT=3500
-      # keep same sqlite file for now; later DATABASE_URL will switch to PG
-      - DB_FILE=database.sqlite
-      - JWT_SECRET=supersecret
-      - ALLOWED_ORIGINS=http://localhost:5173
-      # when migrating, you would set DATABASE_URL to something like
-      # postgres://user:pass@db:5432/intranet
+      - DATABASE_URL=postgres://appuser:apppassword@db:5432/intranet
+      - NODE_ENV=production
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:15
@@ -26,6 +24,11 @@ services:
       POSTGRES_USER: appuser
       POSTGRES_PASSWORD: apppassword
       POSTGRES_DB: intranet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d intranet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - pgdata:/var/lib/postgresql/data
 
