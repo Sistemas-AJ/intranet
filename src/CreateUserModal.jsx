@@ -4,10 +4,10 @@ import { Search, Loader2, Eye, EyeOff } from 'lucide-react';
 const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompanies = [] }) => {
     const [formData, setFormData] = useState({
         ruc: initialData?.ruc || '',
-        razonSocial: initialData?.razonSocial || '',
+        razonSocial: initialData?.razonsocial || initialData?.razonSocial || '',
         direccion: initialData?.direccion || '',
         usuario: initialData?.usuario || '',
-        contrasena: initialData?.contrasena || '',
+        contrasena: '',
     });
 
     const [permissions, setPermissions] = useState(initialData?.permissions || {
@@ -107,7 +107,7 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
 
         const newCompany = { ...formData, permissions };
         // console.log('Creating/Updating User:', newCompany);
-        alert(isEdit ? 'Permisos actualizados exitosamente' : 'Usuario creado exitosamente');
+        alert(isEdit ? 'Empresa actualizada exitosamente' : 'Usuario creado exitosamente');
 
         if (onCreate) {
             onCreate(newCompany);
@@ -140,7 +140,7 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
                 position: 'relative'
             }}>
                 <h2 style={{ marginBottom: '20px', color: 'var(--color-aj-red)', borderBottom: '2px solid var(--color-aj-black)', paddingBottom: '10px' }}>
-                    {isEdit ? 'Editar Permisos de Empresa' : 'Crear Usuario de Empresa'}
+                    {isEdit ? 'Editar Empresa' : 'Crear Usuario de Empresa'}
                 </h2>
 
                 <form onSubmit={handleSubmit}>
@@ -199,14 +199,13 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
                                 value={formData.razonSocial}
                                 onChange={handleInputChange}
                                 required
-                                disabled={isEdit}
                                 style={{
                                     width: '100%',
                                     padding: '8px',
                                     border: '1px solid var(--border-color)',
                                     borderRadius: '4px',
-                                    backgroundColor: isEdit ? '#f0f0f0' : 'white',
-                                    cursor: isEdit ? 'not-allowed' : 'text'
+                                    backgroundColor: 'white',
+                                    cursor: 'text'
                                 }}
                             />
                         </div>
@@ -218,14 +217,13 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
                                 value={formData.direccion}
                                 onChange={handleInputChange}
                                 required
-                                disabled={isEdit}
                                 style={{
                                     width: '100%',
                                     padding: '8px',
                                     border: '1px solid var(--border-color)',
                                     borderRadius: '4px',
-                                    backgroundColor: isEdit ? '#f0f0f0' : 'white',
-                                    cursor: isEdit ? 'not-allowed' : 'text'
+                                    backgroundColor: 'white',
+                                    cursor: 'text'
                                 }}
                             />
                         </div>
@@ -258,37 +256,34 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
                                         name="contrasena"
                                         value={formData.contrasena}
                                         onChange={handleInputChange}
-                                        required
-                                        placeholder="Contraseña de acceso"
-                                        disabled={isEdit}
+                                        required={!isEdit}
+                                        placeholder={isEdit ? 'Nueva contraseña (opcional)' : 'Contraseña de acceso'}
                                         style={{
                                             width: '100%',
                                             padding: '8px',
                                             paddingRight: '35px',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: '4px',
-                                            backgroundColor: isEdit ? '#f0f0f0' : 'white',
-                                            cursor: isEdit ? 'not-allowed' : 'text'
+                                            backgroundColor: 'white',
+                                            cursor: 'text'
                                         }}
                                     />
-                                    {isEdit && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            style={{
-                                                position: 'absolute',
-                                                right: '10px',
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                color: '#666'
-                                            }}
-                                        >
-                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                        </button>
-                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        style={{
+                                            position: 'absolute',
+                                            right: '10px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            color: '#666'
+                                        }}
+                                    >
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -123,6 +123,7 @@ async function initDb() {
   CREATE TABLE IF NOT EXISTS companies (
     ruc TEXT PRIMARY KEY,
     razonSocial TEXT,
+    direccion TEXT,
     usuario TEXT,
     contrasena TEXT,
     role TEXT,
@@ -165,6 +166,7 @@ async function initDb() {
   CREATE TABLE IF NOT EXISTS companies (
     ruc TEXT PRIMARY KEY,
     razonSocial TEXT,
+    direccion TEXT,
     usuario TEXT,
     contrasena TEXT,
     role TEXT,
@@ -312,8 +314,8 @@ const upload = multer({
 async function seedAdmin() {
     const hash = bcrypt.hashSync(ADMIN_CONTRASENA, SALT_ROUNDS);
     await db.run(`
-    INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
-    VALUES ('ADMIN', 'Administrador', ?, ?, 'admin', '{}')
+    INSERT INTO companies (ruc, razonSocial, direccion, usuario, contrasena, role, permissions)
+    VALUES ('ADMIN', 'Administrador', '', ?, ?, 'admin', '{}')
     ON CONFLICT(ruc) DO UPDATE SET
       usuario    = excluded.usuario,
       contrasena = excluded.contrasena
@@ -444,17 +446,19 @@ app.post('/api/companies', requireRole('admin'), async (req, res) => {
                     ? bcrypt.hashSync(String(item.contrasena), SALT_ROUNDS)
                     : undefined;
                 await txDb.run(`
-                  INSERT INTO companies (ruc, razonSocial, usuario, contrasena, role, permissions)
-                  VALUES (?, ?, ?, ?, ?, ?)
+                  INSERT INTO companies (ruc, razonSocial, direccion, usuario, contrasena, role, permissions)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(ruc) DO UPDATE SET
                     razonSocial = excluded.razonSocial,
+                    direccion   = excluded.direccion,
                     usuario     = excluded.usuario,
-                    contrasena  = excluded.contrasena,
+                    contrasena  = COALESCE(NULLIF(excluded.contrasena, ''), companies.contrasena),
                     role        = excluded.role,
                     permissions = excluded.permissions
                 `, [
                     String(item.ruc),
                     item.razonSocial,
+                    item.direccion || '',
                     item.usuario,
                     hashed || item.contrasena || '',
                     item.role || 'client',

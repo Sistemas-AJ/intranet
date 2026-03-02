@@ -262,7 +262,7 @@ const CompanyDashboard = () => {
     // helpers for sidebar actions (admin only)
     const handleEditClick = (company) => {
         // navigate back to dashboard and open edit modal
-        navigate('/', { state: { editCompany: company } });
+        navigate('/dashboard', { state: { editCompany: company } });
     };
 
     const handleDeleteCompany = async (ruc) => {
