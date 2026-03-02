@@ -497,7 +497,7 @@ const DocumentSection = ({
                                             </div>
                                         )}
 
-                                        {(!isClient || allowClientDelete) && (
+                                        {(!isClient || (allowClientDelete && item.uploadedBy === 'client')) && (
                                             <button
                                                 onClick={() => setItemToDelete(item)}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0', display: 'flex' }}

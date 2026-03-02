@@ -670,9 +670,9 @@ const CompanyDashboard = () => {
                         fileAccept=".pdf, .xlsx, .xls"
                         hasType
                         typeOptions={['Extracto Bancario', 'Conciliacion Bancaria']}
-                        showTypeForClient={false}
-                        allowClientUpload={false}
-                        allowClientDelete={false}
+                        showTypeForClient={true}
+                        allowClientUpload={true}
+                        allowClientDelete={true}
                     />
                 );
             case 'cajaChica':

@@ -280,7 +280,6 @@ const useDocumentSection = ({
     }, [uploadYear, uploadMonth, uploadType, uploadDescription, uploadFiles, uploadFile, multiple, storageKey, companyName, sectionLabel]);
 
     const handleDelete = React.useCallback(async (id, isClient = false) => {
-        if (!window.confirm('¿Seguro de eliminar este documento?')) return;
         const itemToDelete = list.find(item => item.id === id);
 
         const ok = await docsApi.deleteDoc(id, {
