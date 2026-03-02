@@ -688,9 +688,9 @@ const CompanyDashboard = () => {
                         fileAccept=".xlsx, .xls"
                         hasType
                         typeOptions={['Control de Caja Chica', 'Arqueo de Caja']}
-                        showTypeForClient={false}
-                        allowClientUpload={false}
-                        allowClientDelete={false}
+                        showTypeForClient={true}
+                        allowClientUpload={true}
+                        allowClientDelete={true}
                     />
                 );
             case 'compras':
