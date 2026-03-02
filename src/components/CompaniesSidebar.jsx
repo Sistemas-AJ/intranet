@@ -31,13 +31,18 @@ const CompaniesSidebar = ({
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
+    const normalizedSearch = searchTerm.toLowerCase();
 
-    const filteredCompanies = companies.filter(company =>
-        company.razonSocial.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        company.ruc.includes(searchTerm)
-    );
+    const filteredCompanies = companies.filter((company) => {
+        const razonSocial = String(company?.razonsocial || '');
+        const ruc = String(company?.ruc || '');
+        return razonSocial.toLowerCase().includes(normalizedSearch) || ruc.includes(searchTerm);
+    });
 
-    const notificationCount = companies.reduce((acc, c) => acc + (checkClientUploads(c.ruc) ? 1 : 0), 0);
+    const notificationCount = companies.reduce((acc, c) => {
+        const ruc = String(c?.ruc || '');
+        return acc + (ruc && checkClientUploads(ruc) ? 1 : 0);
+    }, 0);
 
     return (
         <>
@@ -122,7 +127,7 @@ const CompaniesSidebar = ({
                         </div>
                         <ul style={{ listStyle: 'none', padding: 0 }}>
                             {filteredCompanies.map((company, index) => (
-                                <li key={index} style={{
+                                <li key={company?.ruc || index} style={{
                                     padding: '15px',
                                     borderBottom: '1px solid #eee',
                                     backgroundColor: '#f9f9f9',
@@ -137,12 +142,12 @@ const CompaniesSidebar = ({
                                             style={{ fontWeight: 'bold', marginBottom: '5px', cursor: 'pointer', textDecoration: 'underline' }}
                                             onClick={() => onCompanyClick(company)}
                                         >
-                                            {company.razonSocial}
+                                            {company?.razonsocial || 'Sin razon social'}
                                         </div>
-                                        <div style={{ fontSize: '0.9rem', color: '#666' }}>RUC: {company.ruc}</div>
+                                        <div style={{ fontSize: '0.9rem', color: '#666' }}>RUC: {company?.ruc || 'Sin RUC'}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        {checkClientUploads(company.ruc) && (
+                                        {company?.ruc && checkClientUploads(company.ruc) && (
                                             <div
                                                 title="El cliente subió documentos nuevos"
                                                 style={{

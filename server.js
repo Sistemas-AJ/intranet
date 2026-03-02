@@ -192,6 +192,16 @@ function removeEmptyParents(filePath, stopDir) {
     }
 }
 
+function moveFileAcrossDevices(sourcePath, targetPath) {
+    try {
+        fs.renameSync(sourcePath, targetPath);
+    } catch (error) {
+        if (error?.code !== 'EXDEV') throw error;
+        fs.copyFileSync(sourcePath, targetPath);
+        fs.unlinkSync(sourcePath);
+    }
+}
+
 function toDbBoolean(value) {
     return USE_POSTGRES ? Boolean(value) : (value ? 1 : 0);
 }
@@ -501,7 +511,7 @@ app.post('/api/upload', requireRole('admin', 'client'), upload.array('file'), as
             const targetPath = path.join(targetDir, fileName);
             const publicUrl = `/clientes/${ruc}/${section}/${year}/${month}/${fileName}`.replace(/\\/g, '/');
 
-            fs.renameSync(file.path, targetPath); // atomic move (same FS)
+            moveFileAcrossDevices(file.path, targetPath);
 
             const doc = {
                 id: `${timestamp}_${Math.random().toString(36).substr(2, 9)}`,

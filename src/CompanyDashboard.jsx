@@ -321,7 +321,7 @@ const CompanyDashboard = () => {
 
 
     // ── Hooks para secciones de documentos ──────────────────────────────────
-    const compName = company?.razonSocial || ruc;
+    const compName = company?.razonsocial || ruc;
     const fichaRuc = useDocumentSection({ noPeriod: true, sectionLabel: 'Ficha RUC', companyName: compName, storageKey: `docs_${ruc}_fichaRuc` });
     const reporteTributario = useDocumentSection({ sectionLabel: 'Reporte Tributario', companyName: compName, storageKey: `docs_${ruc}_reporteTributario` });
     const declaracionesMensuales = useDocumentSection({ sectionLabel: 'Declaraciones Mensuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesMensuales` });
@@ -927,7 +927,7 @@ const CompanyDashboard = () => {
                 {/* Welcome */}
                 <div style={{ width: '100%', backgroundColor: 'var(--color-aj-white)', padding: '40px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', borderLeft: '8px solid var(--color-aj-red)', textAlign: 'left' }}>
                     <h2 style={{ fontSize: '2rem', marginBottom: '20px', color: 'var(--color-aj-black)' }}>
-                        ¡Bienvenido al centro de Control de tu empresa, {company.razonSocial}!
+                        ¡Bienvenido al centro de Control de tu empresa, {company.razonsocial}!
                     </h2>
                     <p style={{ color: '#555', fontSize: '1.2rem', lineHeight: '1.6' }}>
                         Has ingresado a la <strong>Intranet de AJ Contratistas Generales</strong>. Desde este panel podrás gestionar toda tu información contable y tributaria, incluyendo la {permissionLabelsList}.

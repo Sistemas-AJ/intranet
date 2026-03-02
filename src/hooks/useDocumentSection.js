@@ -139,13 +139,6 @@ const useDocumentSection = ({
             }
         }
 
-        if (extractedDate) {
-            const targetMonthNum = monthMap[month];
-            if (extractedDate.year !== year || extractedDate.month !== targetMonthNum) {
-                return "El comprobante no coincide con periodo seleccionado";
-            }
-        }
-
         return null;
     };
 

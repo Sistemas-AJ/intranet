@@ -4,15 +4,16 @@ services:
   web:
     build: .
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "3500:3500"
+      - "127.0.0.1:${PORT:-3500}:3500"
     volumes:
       - ./clientes:/app/clientes
-      - ./data:/app/data
     environment:
-      - PORT=3500
-      - DATABASE_URL=postgres://appuser:apppassword@db:5432/intranet
-      - NODE_ENV=production
+      PORT: 3500
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
@@ -21,16 +22,18 @@ services:
     image: postgres:15
     restart: unless-stopped
     environment:
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD: apppassword
-      POSTGRES_DB: intranet
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U appuser -d intranet"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5678:5432"
 
 volumes:
   pgdata:
