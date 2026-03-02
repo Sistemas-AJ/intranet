@@ -424,18 +424,30 @@ const DocumentSection = ({
                                 )}
 
                                 {/* Info */}
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '15px', padding: '15px' }}>
-                                    <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '8px', color: '#2563eb' }}>
+                                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '15px', padding: '15px' }}>
+                                    <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '8px', color: '#2563eb', flexShrink: 0 }}>
                                         <Icon size={24} />
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                                            {item.name}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                            <span
+                                                style={{
+                                                    fontWeight: '600',
+                                                    minWidth: 0,
+                                                    overflowWrap: 'anywhere',
+                                                    wordBreak: 'break-word',
+                                                    lineHeight: '1.4'
+                                                }}
+                                                title={item.name}
+                                            >
+                                                {item.name}
+                                            </span>
                                             {!!item.type && item.type !== 'Documento' && (
                                                 <span style={{
-                                                    marginLeft: '8px', fontSize: '0.75rem', padding: '2px 8px',
+                                                    fontSize: '0.75rem', padding: '2px 8px',
                                                     borderRadius: '12px', backgroundColor: '#dbeafe',
-                                                    color: '#1e40af', fontWeight: '600', border: '1px solid #bfdbfe'
+                                                    color: '#1e40af', fontWeight: '600', border: '1px solid #bfdbfe',
+                                                    flexShrink: 0
                                                 }}>
                                                     {item.type}
                                                 </span>
@@ -458,7 +470,7 @@ const DocumentSection = ({
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, alignSelf: 'center' }}>
                                         <a
                                             href={item.url}
                                             download={item.name}
