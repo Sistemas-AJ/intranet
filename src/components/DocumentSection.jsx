@@ -60,6 +60,9 @@ const DocumentSection = ({
     const [rejectionItem, setRejectionItem] = React.useState(null);
     const [rejectionComment, setRejectionComment] = React.useState('');
     const [itemToDelete, setItemToDelete] = React.useState(null);
+    const [itemsToDelete, setItemsToDelete] = React.useState([]);
+    const [selectedIds, setSelectedIds] = React.useState([]);
+    const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
     const [tempToast, setTempToast] = React.useState('');
 
     // Función para extraer datos del nombre de archivo
@@ -107,6 +110,7 @@ const DocumentSection = ({
         handleUpload,
         handleSave,
         handleDelete,
+        handleDeleteMany,
         handleDownloadZip,
         toggleNonDeducible,
         setList,
@@ -119,10 +123,64 @@ const DocumentSection = ({
     const inputId = `doc-upload-${Math.random().toString(36).substr(2, 5)}`;
     const inputRef = React.useRef(null);
 
+    const canDeleteItem = React.useCallback((item) => {
+        if (!item) return false;
+        return !isClient || (allowClientDelete && item.uploadedBy === 'client');
+    }, [isClient, allowClientDelete]);
+
     // Clear error when closing form or changing data
     React.useEffect(() => {
         if (!showForm) setUploadError('');
     }, [showForm, uploadYear, uploadMonth]);
+
+    React.useEffect(() => {
+        setSelectedIds((prev) => prev.filter((id) => filteredList.some((item) => item.id === id && canDeleteItem(item))));
+    }, [filteredList, canDeleteItem]);
+
+    const selectableItems = React.useMemo(
+        () => filteredList.filter(canDeleteItem),
+        [filteredList, canDeleteItem]
+    );
+    const allVisibleSelected = selectableItems.length > 0 && selectableItems.every((item) => selectedIds.includes(item.id));
+
+    const toggleItemSelection = (id) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAllVisible = () => {
+        if (allVisibleSelected) {
+            setSelectedIds((prev) => prev.filter((id) => !selectableItems.some((item) => item.id === id)));
+            return;
+        }
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            selectableItems.forEach((item) => next.add(item.id));
+            return Array.from(next);
+        });
+    };
+
+    const confirmBulkDelete = () => {
+        const selectedItems = filteredList.filter((item) => selectedIds.includes(item.id) && canDeleteItem(item));
+        if (selectedItems.length === 0) return;
+        setItemsToDelete(selectedItems);
+    };
+
+    const executeBulkDelete = async () => {
+        if (itemsToDelete.length === 0) return;
+        setIsBulkDeleting(true);
+        try {
+            const deletedIds = await handleDeleteMany(itemsToDelete.map((item) => item.id), isClient);
+            if (deletedIds.length === 0) return;
+            setSelectedIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+            setItemsToDelete([]);
+            setTempToast(deletedIds.length === 1 ? 'Comprobante eliminado' : 'Comprobantes eliminados');
+            setTimeout(() => setTempToast(''), 3000);
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
 
     if (showForm) {
         return (
@@ -378,6 +436,53 @@ const DocumentSection = ({
             }}>
                 {filteredList.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {selectableItems.length > 0 && (
+                            <div style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '12px',
+                                padding: '10px 12px',
+                                backgroundColor: 'white',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px'
+                            }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '600', color: '#334155' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={allVisibleSelected}
+                                        onChange={toggleSelectAllVisible}
+                                        style={{ accentColor: 'var(--color-aj-red)' }}
+                                    />
+                                    Seleccionar visibles
+                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                                        {selectedIds.length} seleccionado(s)
+                                    </span>
+                                    <button
+                                        onClick={confirmBulkDelete}
+                                        disabled={selectedIds.length === 0}
+                                        style={{
+                                            padding: '8px 14px',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            backgroundColor: selectedIds.length === 0 ? '#cbd5e1' : '#ef4444',
+                                            color: 'white',
+                                            fontWeight: '600',
+                                            cursor: selectedIds.length === 0 ? 'not-allowed' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+                                    >
+                                        <Trash2 size={16} />
+                                        Eliminar seleccionados
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         {filteredList.map(item => (
                             <div
                                 key={item.id}
@@ -425,6 +530,16 @@ const DocumentSection = ({
 
                                 {/* Info */}
                                 <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '15px', padding: '15px' }}>
+                                    {canDeleteItem(item) && (
+                                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(item.id)}
+                                                onChange={() => toggleItemSelection(item.id)}
+                                                style={{ width: '16px', height: '16px', accentColor: 'var(--color-aj-red)' }}
+                                            />
+                                        </label>
+                                    )}
                                     <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '8px', color: '#2563eb', flexShrink: 0 }}>
                                         <Icon size={24} />
                                     </div>
@@ -643,6 +758,43 @@ const DocumentSection = ({
                                 style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontWeight: '600', cursor: 'pointer' }}
                             >
                                 Sí, eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {itemsToDelete.length > 0 && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '30px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                        <div style={{ backgroundColor: '#fee2e2', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#ef4444' }}>
+                            <Trash2 size={30} />
+                        </div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '15px', color: '#111' }}>Confirmar eliminación masiva</h3>
+                        <p style={{ color: '#555', marginBottom: '20px', lineHeight: '1.6' }}>
+                            Se eliminarán <strong>{itemsToDelete.length}</strong> archivo(s) seleccionados.
+                        </p>
+                        <div style={{ maxHeight: '160px', overflowY: 'auto', textAlign: 'left', marginBottom: '25px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
+                            {itemsToDelete.map((item) => (
+                                <div key={item.id} style={{ fontSize: '0.9rem', color: '#334155', padding: '4px 0', overflowWrap: 'anywhere' }}>
+                                    {item.name}
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button
+                                onClick={() => setItemsToDelete([])}
+                                disabled={isBulkDeleting}
+                                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', background: 'white', fontWeight: '600', cursor: isBulkDeleting ? 'not-allowed' : 'pointer' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={executeBulkDelete}
+                                disabled={isBulkDeleting}
+                                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontWeight: '600', cursor: isBulkDeleting ? 'not-allowed' : 'pointer' }}
+                            >
+                                {isBulkDeleting ? 'Eliminando...' : 'Sí, eliminar'}
                             </button>
                         </div>
                     </div>

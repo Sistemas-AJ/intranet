@@ -218,6 +218,27 @@ function parseJsonField(value, fallback) {
     return JSON.parse(value);
 }
 
+function clientDeleteError(doc, userRuc) {
+    if (!doc) return null;
+    if (doc.ruc !== userRuc) {
+        return 'No puedes eliminar archivos de otro cliente';
+    }
+    if (doc.uploadedBy !== 'client') {
+        return 'Los clientes no pueden eliminar archivos subidos por el administrador';
+    }
+    return null;
+}
+
+async function deleteDocumentRecord(doc) {
+    if (!doc) return;
+    const filePath = path.join(__dirname, doc.url.startsWith('/') ? doc.url.substring(1) : doc.url);
+    if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        removeEmptyParents(filePath, CLIENTES_DIR);
+    }
+    await db.run('DELETE FROM documents WHERE id = ?', [doc.id]);
+}
+
 // ── ROLE MIDDLEWARE ──────────────────────────────────────────────────────────
 /**
  * requireRole(...roles)
@@ -625,11 +646,9 @@ app.delete('/api/docs', requireRole('admin', 'client'), async (req, res) => {
         if (req.userRole === 'client') {
             if (id) {
                 const doc = await db.get('SELECT * FROM documents WHERE id = ?', [id]);
-                if (doc && doc.ruc !== req.userRuc) {
-                    return res.status(403).json({ error: 'No puedes eliminar archivos de otro cliente' });
-                }
-                if (doc && doc.uploadedBy !== 'client') {
-                    return res.status(403).json({ error: 'Los clientes no pueden eliminar archivos subidos por el administrador' });
+                const error = clientDeleteError(doc, req.userRuc);
+                if (error) {
+                    return res.status(403).json({ error });
                 }
             } else if (key) {
                 const parts = key.split('_');
@@ -642,21 +661,48 @@ app.delete('/api/docs', requireRole('admin', 'client'), async (req, res) => {
 
         if (id) {
             const doc = await db.get('SELECT * FROM documents WHERE id = ?', [id]);
-            if (doc) {
-                const p = path.join(__dirname, doc.url.startsWith('/') ? doc.url.substring(1) : doc.url);
-                if (fs.existsSync(p)) { fs.unlinkSync(p); removeEmptyParents(p, CLIENTES_DIR); }
-                await db.run('DELETE FROM documents WHERE id = ?', [id]);
-            }
+            await deleteDocumentRecord(doc);
         } else if (key) {
             const docs = await db.all('SELECT * FROM documents WHERE storageKey = ?', [key]);
             for (const doc of docs) {
-                const p = path.join(__dirname, doc.url.startsWith('/') ? doc.url.substring(1) : doc.url);
-                if (fs.existsSync(p)) { fs.unlinkSync(p); removeEmptyParents(p, CLIENTES_DIR); }
+                await deleteDocumentRecord(doc);
             }
-            await db.run('DELETE FROM documents WHERE storageKey = ?', [key]);
         }
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/docs/bulk-delete', requireRole('admin', 'client'), async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((id) => String(id)).filter(Boolean) : [];
+
+    if (ids.length === 0) {
+        return res.status(400).json({ error: 'Faltan ids para eliminar' });
+    }
+
+    try {
+        const docs = [];
+        for (const id of ids) {
+            const doc = await db.get('SELECT * FROM documents WHERE id = ?', [id]);
+            if (doc) docs.push(doc);
+        }
+
+        if (req.userRole === 'client') {
+            for (const doc of docs) {
+                const error = clientDeleteError(doc, req.userRuc);
+                if (error) {
+                    return res.status(403).json({ error });
+                }
+            }
+        }
+
+        for (const doc of docs) {
+            await deleteDocumentRecord(doc);
+        }
+
+        res.json({ ok: true, deletedIds: docs.map((doc) => doc.id) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // -- Update doc fields --

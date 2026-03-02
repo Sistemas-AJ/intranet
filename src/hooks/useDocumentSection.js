@@ -60,6 +60,16 @@ const docsApi = {
             console.error('[docsApi] Error eliminando documento:', e);
             return false;
         }
+    },
+
+    async deleteDocs(ids) {
+        try {
+            const res = await api.post('/docs/bulk-delete', { ids });
+            return res.status === 200 ? (res.data?.deletedIds || []) : [];
+        } catch (e) {
+            console.error('[docsApi] Error eliminando documentos:', e);
+            return [];
+        }
     }
 };
 
@@ -280,8 +290,6 @@ const useDocumentSection = ({
     }, [uploadYear, uploadMonth, uploadType, uploadDescription, uploadFiles, uploadFile, multiple, storageKey, companyName, sectionLabel]);
 
     const handleDelete = React.useCallback(async (id, isClient = false) => {
-        const itemToDelete = list.find(item => item.id === id);
-
         const ok = await docsApi.deleteDoc(id, {
             isClient,
             companyName: companyName,
@@ -297,6 +305,20 @@ const useDocumentSection = ({
             }
         }
     }, [list, storageKey, companyName, sectionLabel]);
+
+    const handleDeleteMany = React.useCallback(async (ids, isClient = false) => {
+        const deletedIds = await docsApi.deleteDocs(ids);
+
+        if (deletedIds.length > 0) {
+            setList((prev) => prev.filter((item) => !deletedIds.includes(item.id)));
+            if (isClient) {
+                const reload = await docsApi.load(storageKey);
+                setMetadata(reload.metadata);
+            }
+        }
+
+        return deletedIds;
+    }, [storageKey]);
 
     const toggleNonDeducible = React.useCallback(async (id, isNonDeducible, comment = '') => {
         const updates = { isNonDeducible, adminComment: comment, seenByClient: false };
@@ -402,6 +424,7 @@ const useDocumentSection = ({
         handleUpload,
         handleSave,
         handleDelete,
+        handleDeleteMany,
         handleDownloadZip,
         markAllAsSeenByAdmin,
         markAllAsSeenByClient,
