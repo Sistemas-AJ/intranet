@@ -12,8 +12,6 @@ import jwt from 'jsonwebtoken';
 import {
   PORT,
   CLIENTES_DIR,
-  DB_DIR,
-  DB_PATH,
   DATABASE_URL,
   DIST_DIR,
   ADMIN_USUARIO,
@@ -21,7 +19,6 @@ import {
   ALLOWED_ORIGINS,
   JWT_SECRET,
   SALT_ROUNDS,
-  USE_POSTGRES,
 } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,15 +78,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // throughout the codebase.
 
 if (!fs.existsSync(CLIENTES_DIR)) fs.mkdirSync(CLIENTES_DIR, { recursive: true });
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
 import db, { exec } from './db.js';
 
 async function initDb() {
-    if (USE_POSTGRES) {
-        // create tables with syntax acceptable to Postgres; we use SERIAL
-        // for the auto-incrementing primary key and BOOLEAN for bit flags.
-        await exec(`
+    // PostgreSQL is required; initialize schema with its native types.
+    await exec(`
   CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     storageKey TEXT,
@@ -130,50 +124,6 @@ async function initDb() {
     permissions TEXT
   );
 `);
-    } else {
-        // existing sqlite initialization
-        await exec(`
-  CREATE TABLE IF NOT EXISTS documents (
-    id TEXT PRIMARY KEY,
-    storageKey TEXT,
-    ruc TEXT,
-    section TEXT,
-    year TEXT,
-    month TEXT,
-    name TEXT,
-    url TEXT,
-    type TEXT,
-    description TEXT,
-    adminComment TEXT,
-    isNonDeducible INTEGER,
-    uploadedBy TEXT,
-    seenByAdmin INTEGER,
-    seenByClient INTEGER,
-    timestamp TEXT
-  );
-  CREATE TABLE IF NOT EXISTS metadata (
-    storageKey TEXT PRIMARY KEY,
-    unreadForAdmin INTEGER,
-    unreadForClient INTEGER,
-    events TEXT
-  );
-  CREATE TABLE IF NOT EXISTS history_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action TEXT,
-    details TEXT,
-    timestamp TEXT
-  );
-  CREATE TABLE IF NOT EXISTS companies (
-    ruc TEXT PRIMARY KEY,
-    razonSocial TEXT,
-    direccion TEXT,
-    usuario TEXT,
-    contrasena TEXT,
-    role TEXT,
-    permissions TEXT
-  );
-`);
-    }
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -205,7 +155,7 @@ function moveFileAcrossDevices(sourcePath, targetPath) {
 }
 
 function toDbBoolean(value) {
-    return USE_POSTGRES ? Boolean(value) : (value ? 1 : 0);
+    return Boolean(value);
 }
 
 function fromDbBoolean(value) {
@@ -745,7 +695,7 @@ app.post('/api/docs-metadata', requireRole('admin', 'client'), async (req, res) 
     `, [
             unreadForAdmin === undefined ? null : toDbBoolean(unreadForAdmin),
             unreadForClient === undefined ? null : toDbBoolean(unreadForClient),
-            USE_POSTGRES ? Boolean(clearEvents) : (clearEvents ? 1 : 0),
+            Boolean(clearEvents),
             key,
         ]);
         res.json({ ok: true });
@@ -784,7 +734,7 @@ async function startServer() {
         await seedAdmin();
         app.listen(PORT, () => {
             console.log(`✅ Servidor listo en http://localhost:${PORT}  [modo: ${process.env.NODE_ENV || 'development'}]`);
-            console.log(`   db: ${USE_POSTGRES ? DATABASE_URL : DB_PATH}`);
+            console.log(`   db: ${DATABASE_URL}`);
         });
     } catch (error) {
         console.error('failed to initialize database', error);
