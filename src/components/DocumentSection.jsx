@@ -294,6 +294,18 @@ const DocumentSection = ({
                     </label>
                 </div>
 
+                <div style={{
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    color: '#475569',
+                    fontSize: '0.9rem',
+                    lineHeight: '1.5'
+                }}>
+                    Limites de carga: maximo 20 archivos por envio y hasta 50 MB por archivo.
+                </div>
+
                 {/* Tabla de archivos múltiples (modo Excel) */}
                 {multiple && uploadFiles.length > 0 && (
                     <div style={{ marginTop: '10px', overflowX: 'auto' }}>
