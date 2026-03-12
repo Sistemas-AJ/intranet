@@ -283,13 +283,13 @@ const upload = multer({
 
 // ── SEED ADMIN ───────────────────────────────────────────────────────────────
 async function seedAdmin() {
+    const existingAdmin = await db.get('SELECT ruc FROM companies WHERE ruc = ?', ['ADMIN']);
+    if (existingAdmin) return;
+
     const hash = bcrypt.hashSync(ADMIN_CONTRASENA, SALT_ROUNDS);
     await db.run(`
     INSERT INTO companies (ruc, razonSocial, direccion, usuario, contrasena, role, permissions)
     VALUES ('ADMIN', 'Administrador', '', ?, ?, 'admin', '{}')
-    ON CONFLICT(ruc) DO UPDATE SET
-      usuario    = excluded.usuario,
-      contrasena = excluded.contrasena
   `, [ADMIN_USUARIO, hash]);
 }
 
