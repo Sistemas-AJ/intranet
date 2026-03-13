@@ -55,8 +55,9 @@ app.use(
 app.use(
     cors({
         origin: (origin, callback) => {
+            const normalizedOrigin = (origin || '').replace(/\/+$/, '');
             // permit server-to-server (no origin) and listed origins
-            if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            if (!origin || ALLOWED_ORIGINS.includes(normalizedOrigin)) {
                 callback(null, true);
             } else {
                 callback(new Error(`CORS: origin ${origin} not allowed`));

@@ -15,6 +15,7 @@ import useDocumentSection from './hooks/useDocumentSection';
 import CompaniesSidebar from './components/CompaniesSidebar';
 import DocumentSection from './components/DocumentSection';
 import PlameSection from './components/PlameSection';
+import LibrosRegistrosSection from './components/LibrosRegistrosSection';
 import TaxCalendarModal from './components/TaxCalendarModal';
 
 
@@ -29,6 +30,7 @@ const permissionConfig = {
     declaracionesAnuales: { label: 'Declaraciones Anuales', icon: CalendarDays },
     reporteTributario: { label: 'Reporte Tributario', icon: FileBarChart },
     plame: { label: 'Plame', icon: Users },
+    librosRegistros: { label: 'Libros y Registros', icon: FileText },
     afpNet: { label: 'AFP NET', icon: ShieldCheck },
     bancos: { label: 'Bancos', icon: Landmark },
     cajaChica: { label: 'Control de Caja', icon: Wallet },
@@ -329,6 +331,9 @@ const CompanyDashboard = () => {
     const plame_boletas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'boletas', sectionLabel: 'Plame - Boletas', companyName: compName, storageKey: `docs_${ruc}_plame_boletas` });
     const plame_constancias = useDocumentSection({ multiple: true, zipLabel: 'constancias', sectionLabel: 'Plame - Constancias', companyName: compName, storageKey: `docs_${ruc}_plame_constancias` });
     const plame_nps = useDocumentSection({ multiple: true, zipLabel: 'nps', sectionLabel: 'Plame - NPS', companyName: compName, storageKey: `docs_${ruc}_plame_nps` });
+    const librosRegistros_sire = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'sire', sectionLabel: 'Libros y Registros - Sire', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_sire` });
+    const librosRegistros_libroDiario = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'libro_diario', sectionLabel: 'Libros y Registros - Libro Diario', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_libroDiario` });
+    const librosRegistros_otrosLibros = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'otros_libros', sectionLabel: 'Libros y Registros - Otros Libros', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_otrosLibros` });
     const afpNet = useDocumentSection({ hasType: true, sectionLabel: 'AFP NET', companyName: compName, storageKey: `docs_${ruc}_afpNet` });
     const bancos = useDocumentSection({ hasType: true, sectionLabel: 'Bancos', companyName: compName, storageKey: `docs_${ruc}_bancos` });
     const cajaChica = useDocumentSection({ hasType: true, sectionLabel: 'Control de Caja', companyName: compName, storageKey: `docs_${ruc}_cajaChica` });
@@ -358,13 +363,14 @@ const CompanyDashboard = () => {
         if (sectionKey === 'fichaRuc') return isUnread(fichaRuc);
         if (sectionKey === 'reporteTributario') return isUnread(reporteTributario);
         if (sectionKey === 'plame') return isUnread(plame_boletas) || isUnread(plame_constancias) || isUnread(plame_nps);
+        if (sectionKey === 'librosRegistros') return isUnread(librosRegistros_sire) || isUnread(librosRegistros_libroDiario) || isUnread(librosRegistros_otrosLibros);
         if (sectionKey === 'otrosDocumentos') return isUnread(otros_notificaciones) || isUnread(otros_varios) || isUnread(otros_constitucion);
 
         const hks = {
             declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas
         };
         return isUnread(hks[sectionKey]);
-    }, [isClient, fichaRuc, reporteTributario, plame_boletas, plame_constancias, plame_nps, otros_notificaciones, otros_varios, otros_constitucion, declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas]);
+    }, [isClient, fichaRuc, reporteTributario, plame_boletas, plame_constancias, plame_nps, librosRegistros_sire, librosRegistros_libroDiario, librosRegistros_otrosLibros, otros_notificaciones, otros_varios, otros_constitucion, declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas]);
 
     // Global Notification Helper
     const hasAnyUnread = React.useMemo(() =>
@@ -377,6 +383,7 @@ const CompanyDashboard = () => {
         fichaRuc, reporteTributario,
         declaracionesMensuales, declaracionesAnuales, afpNet, bancos, cajaChica, compras, ventas,
         plame_boletas, plame_constancias, plame_nps,
+        librosRegistros_sire, librosRegistros_libroDiario, librosRegistros_otrosLibros,
         otros_notificaciones, otros_varios, otros_constitucion
     ];
 
@@ -388,11 +395,11 @@ const CompanyDashboard = () => {
             }
         });
         return events.sort((a, b) => b.id - a.id);
-    }, [fichaRuc.metadata, reporteTributario.metadata, declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
+    }, [fichaRuc.metadata, reporteTributario.metadata, declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, librosRegistros_sire.metadata, librosRegistros_libroDiario.metadata, librosRegistros_otrosLibros.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
 
     const hasUnreadEvents = React.useMemo(() => {
         return allHooks.some(hook => hook.metadata?.unreadForAdmin);
-    }, [fichaRuc.metadata, reporteTributario.metadata, declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
+    }, [fichaRuc.metadata, reporteTributario.metadata, declaracionesMensuales.metadata, declaracionesAnuales.metadata, afpNet.metadata, bancos.metadata, cajaChica.metadata, compras.metadata, ventas.metadata, plame_boletas.metadata, plame_constancias.metadata, plame_nps.metadata, librosRegistros_sire.metadata, librosRegistros_libroDiario.metadata, librosRegistros_otrosLibros.metadata, otros_notificaciones.metadata, otros_varios.metadata, otros_constitucion.metadata]);
 
     const markAllAsRead = React.useCallback(() => {
         allHooks.forEach(hook => hook.markAsRead());
@@ -424,6 +431,8 @@ const CompanyDashboard = () => {
 
             if (selectedPermission === 'plame') {
                 markAsSeen(plame_boletas); markAsSeen(plame_constancias); markAsSeen(plame_nps);
+            } else if (selectedPermission === 'librosRegistros') {
+                markAsSeen(librosRegistros_sire); markAsSeen(librosRegistros_libroDiario); markAsSeen(librosRegistros_otrosLibros);
             } else if (selectedPermission === 'otrosDocumentos') {
                 markAsSeen(otros_notificaciones); markAsSeen(otros_varios); markAsSeen(otros_constitucion);
             } else {
@@ -433,7 +442,7 @@ const CompanyDashboard = () => {
                 markAsSeen(hks[selectedPermission]);
             }
         }
-    }, [selectedPermission, isClient, fichaRuc, reporteTributario, declaracionesMensuales, declaracionesAnuales, plame_boletas, plame_constancias, plame_nps, afpNet, bancos, cajaChica, compras, ventas, otros_notificaciones, otros_varios, otros_constitucion]);
+    }, [selectedPermission, isClient, fichaRuc, reporteTributario, declaracionesMensuales, declaracionesAnuales, plame_boletas, plame_constancias, plame_nps, librosRegistros_sire, librosRegistros_libroDiario, librosRegistros_otrosLibros, afpNet, bancos, cajaChica, compras, ventas, otros_notificaciones, otros_varios, otros_constitucion]);
 
     // ── Descarga Masiva para Compras (excluir no deducibles) ──────────────────
     const handleComprasBulkDownload = async () => {
@@ -553,6 +562,9 @@ const CompanyDashboard = () => {
                 plame_boletas: 'Plame - Boletas de Pago',
                 plame_constancias: 'Plame - Constancias',
                 plame_nps: 'Plame - NPS',
+                librosRegistros_sire: 'Libros y Registros - Sire',
+                librosRegistros_libroDiario: 'Libros y Registros - Libro Diario',
+                librosRegistros_otrosLibros: 'Libros y Registros - Otros Libros',
                 otrosDocumentos_notificaciones: 'Otros Documentos - Notificaciones SUNAT',
                 otrosDocumentos_varios: 'Otros Documentos - Documentos Varios',
                 otrosDocumentos_constitucion: 'Otros Documentos - Constitucion',
@@ -627,7 +639,7 @@ const CompanyDashboard = () => {
     const permissionLabelsList = activePermissions.map(k => permissionConfig[k]?.label).filter(Boolean).join(', ');
 
     // Permissions with custom sections (no generic upload button)
-    const CUSTOM_PERMISSIONS = ['fichaRuc', 'reporteTributario', 'declaracionesMensuales', 'declaracionesAnuales', 'plame', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas', 'otrosDocumentos'];
+    const CUSTOM_PERMISSIONS = ['fichaRuc', 'reporteTributario', 'declaracionesMensuales', 'declaracionesAnuales', 'plame', 'librosRegistros', 'afpNet', 'bancos', 'cajaChica', 'compras', 'ventas', 'otrosDocumentos'];
 
     const renderModalContent = () => {
         switch (selectedPermission) {
@@ -641,6 +653,8 @@ const CompanyDashboard = () => {
                 return <DeclaracionesAnualesSection isClient={isClient} ruc={ruc} hook={declaracionesAnuales} />;
             case 'plame':
                 return <PlameSection isClient={isClient} ruc={ruc} hooks={{ boletas: plame_boletas, constancias: plame_constancias, nps: plame_nps }} />;
+            case 'librosRegistros':
+                return <LibrosRegistrosSection isClient={isClient} hooks={{ sire: librosRegistros_sire, libroDiario: librosRegistros_libroDiario, otrosLibros: librosRegistros_otrosLibros }} />;
             case 'afpNet':
                 return (
                     <DocumentSection
