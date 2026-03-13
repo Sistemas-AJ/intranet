@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Eye, EyeOff } from 'lucide-react';
 
+const DEFAULT_PERMISSIONS = {
+    fichaRuc: false,
+    declaracionesMensuales: false,
+    declaracionesAnuales: false,
+    reporteTributario: false,
+    plame: false,
+    librosRegistros: false,
+    afpNet: false,
+    bancos: false,
+    cajaChica: false,
+    compras: false,
+    ventas: false,
+    otrosDocumentos: false,
+};
+
 const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompanies = [] }) => {
     const [formData, setFormData] = useState({
         ruc: initialData?.ruc || '',
@@ -10,19 +25,9 @@ const CreateUserModal = ({ onClose, onCreate, initialData, isEdit, existingCompa
         contrasena: '',
     });
 
-    const [permissions, setPermissions] = useState(initialData?.permissions || {
-        fichaRuc: false,
-        declaracionesMensuales: false,
-        declaracionesAnuales: false,
-        reporteTributario: false,
-        plame: false,
-        librosRegistros: false,
-        afpNet: false,
-        bancos: false,
-        cajaChica: false,
-        compras: false,
-        ventas: false,
-        otrosDocumentos: false,
+    const [permissions, setPermissions] = useState({
+        ...DEFAULT_PERMISSIONS,
+        ...(initialData?.permissions || {}),
     });
 
     const [showPassword, setShowPassword] = useState(false);
