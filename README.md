@@ -1,111 +1,194 @@
-# React + Vite
+# Intranet AJ Sistemas - Sistema de Gestión Documental y Contable
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Sistema web full-stack diseñado para la gestión documental, contable y tributaria entre la administración de **AJ Sistemas** y sus empresas clientes.
 
 ---
 
-## Server configuration
+## 📌 Tabla de Contenidos
+1. [Descripción General](#descripción-general)
+2. [Arquitectura y Tecnologías](#arquitectura-y-tecnologías)
+3. [Estructura del Proyecto](#estructura-del-proyecto)
+4. [Roles y Permisos](#roles-y-permisos)
+5. [Modelo de Datos (Base de Datos)](#modelo-de-datos-base-de-datos)
+6. [Configuración y Variables de Entorno](#configuración-y-variables-de-entorno)
+7. [Instalación y Ejecución Local](#instalación-y-ejecución-local)
+8. [Despliegue con Docker](#despliegue-con-docker)
+9. [Seguridad](#seguridad)
 
-The backend reads several values from environment variables so that
-credentials and paths aren’t hard‑coded in `server.js`.
+---
 
-1. Copy `.env.example` to `.env` and edit values as needed.  Among the
-   settings you can now override is `VITE_API_URL`, which tells the dev
-   server where to proxy API calls (default: `http://localhost:3000`).
-2. `config.js` exposes constants like `DB_PATH`, `ADMIN_USUARIO`,
-   `ALLOWED_ORIGINS`, etc., which are consumed by the server.
-3. You may change the database file name by setting `DB_FILE`.
+## 🚀 Descripción General
 
-By centralizing configuration in `.env`/`config.js`, you avoid the
-“locura” of scattering constants throughout the codebase and make
-production deployment safer.
+La Intranet de AJ Sistemas permite organizar, centralizar y compartir documentación tributaria y contable estructurada por **Empresa (RUC)**, **Sección** (Compras, Ventas, Libros Registros, PLAME, etc.), **Año** y **Mes**.
 
-### Development server note
+### Funcionalidades Principales:
+* **Panel Administrador**:
+  * Gestión de empresas clientes (creación, edición y control de accesos).
+  * Subida, organización y eliminación de documentos para cualquier cliente.
+  * Comentarios y comunicación en tiempo real sobre los documentos subidos.
+  * Asignación y visualización del Calendario Tributario.
+  * Registro de auditoría (*history logs*).
+* **Panel Cliente**:
+  * Acceso mediante RUC y contraseña.
+  * Visualización y descarga individual o masiva (en ZIP) de sus comprobantes y libros.
+  * Subida de documentos dirigidos al equipo contable.
+  * Control de documentos leídos/no leídos.
+* **Visor y Descarga**:
+  * Previsualización de archivos PDF integrados.
+  * Descarga masiva de archivos comprimidos (.zip).
 
-The custom `vite-plugin-clientes.js` that previously simulated the backend
-has been removed.  The Vite server now proxies `/api` to the real
-backend (`VITE_API_URL`), so behavior during development closely matches
-production and authentication is enforced.
+---
 
-**Important:** `npm run dev` only starts the **frontend** (Vite). the
-backend (Express) must be started separately—e.g. in another terminal run
-`npm run start` or `node server.js`.  If the backend isn’t listening you’ll
-see proxy errors like `connect ECONNREFUSED 127.0.0.1:3000` and the
-browser will log “error de servidor 500” when calls fail.
+## 🛠️ Arquitectura y Tecnologías
 
-Because the frontend is served by Vite during development, the Express
-server no longer attempts to serve the `dist` directory unless it actually
-exists (or when `NODE_ENV` is `production`).  This avoids noisy `ENOENT`
-errors for `/dist/index.html` when navigating the app while running in
-dev mode.
+El sistema utiliza una arquitectura desemparejada **SPA (Single Page Application)** + **API REST Express** + **PostgreSQL**:
 
-### Security enhancements
+* **Frontend**:
+  * [React 19](https://react.dev/) + [Vite 7](https://vitejs.dev/)
+  * [React Router DOM v7](https://reactrouter.com/) (Enrutamiento del cliente)
+  * [Lucide React](https://lucide.dev/) (Iconografía moderna)
+  * [Axios](https://axios-http.com/) con interceptores para inyección automática de Token JWT
+  * [JSZip](https://stuk.github.io/jszip/) & [FileSaver](https://github.com/eligrey/FileSaver.js/) (Empaquetado de descargas ZIP)
+* **Backend**:
+  * [Node.js](https://nodejs.org/) (ES Modules)
+  * [Express.js](https://expressjs.com/) (Servidor HTTP / API REST)
+  * [Multer](https://github.com/expressjs/multer) (Procesamiento y carga de archivos)
+  * [Helmet](https://helmetjs.github.io/) & [CORS](https://github.com/expressjs/cors) (Seguridad HTTP)
+* **Base de Datos**:
+  * [PostgreSQL](https://www.postgresql.org/) (driver `pg`)
+* **Contenerización**:
+  * Docker con imagen base `node:20-slim` y `docker-compose` con servicio de PostgreSQL 15.
 
-* Passwords are now **hashed with bcrypt** (configurable salt rounds) instead
-  of stored in plain text.  All writes to `companies.contrasena` are hashed
-  automatically by the server.
-* `POST /api/login` issues a **JWT bearer token** which the client must send
-  in the `Authorization: Bearer <token>` header on subsequent requests.  This
-  replaces the old `x-role`/`x-ruc` header scheme while remaining compatible.
-* All `/api` routes except `/login` are now guarded by the token middleware.
-  In particular, `/api/companies` — previously publicly readable — now only
-  returns information to authenticated users (admins may list all companies,
-  clients may only fetch their own).
+---
 
-#### Front-end token handling & API helper
+## 📁 Estructura del Proyecto
 
-* The React client now uses `src/api.js`, a thin `axios` wrapper with a
-  request interceptor that reads `localStorage.authToken` and attaches the
-  bearer token automatically.  Components call `api.get`, `api.post`, etc.,
-  instead of performing raw `fetch` calls, so credential management is centralized.
-* Tokens are saved during login and cleared on logout; developers should
-  continue using `localStorage.currentUser` for user info and rely on the
-  interceptor for authorization headers.
-* The database driver uses prepared statements throughout (`db.prepare(...?)`)
-  which automatically parameterises inputs and protects against SQL
-  injection.  Never concatenate user data into SQL strings.
-
-Make sure to set a strong `JWT_SECRET` in production and never commit it to
-source control.
-
-## Containerization (Docker)
-
-A `Dockerfile` and accompanying `docker-compose.yml` allow you to run the
-backend inside a container and, optionally, bring up a Postgres database at
-the same time.  The initial setup still uses SQLite, but the codebase is
-prepared for a smooth transition when you're ready to switch.
-
-> **Nota**: la imagen original usaba `node:alpine` para ser pequeña,
-> pero ese musl‑based image no incluye `glibc` y el módulo nativo
-> `better‑sqlite3` falla con `ld-linux-x86-64.so.2 missing`.  Por ello
-> el `Dockerfile` se cambió a `node:20-slim` (deb-based) que trae el
-> runtime estándar y evita ese problema.  Si prefieres una base Alpine,
-> tendrás que instalar `gcompat` o compilar el módulo desde cero.
-
-```bash
-# build images and launch services
-docker-compose up --build
-
-# - the web service listens on port 3500 (host port 3500 by default)
-# - ./clientes and ./data are mounted into the container so uploads and the
-#   sqlite file persist across restarts
+```text
+intranet/
+├── config.js               # Centralización de variables de entorno y configuración
+├── db.js                   # Conexión PostgreSQL (Pool pg) y helpers de consulta SQL
+├── server.js               # Servidor API Express, middleware de auth, rutas y WebSocket/Log
+├── package.json            # Dependencias y scripts del proyecto
+├── vite.config.js          # Configuración de Vite y proxy de desarrollo (/api)
+├── Dockerfile              # Construcción multi-stage para producción
+├── docker-compose.yml      # Definición de servicios (Web API + Base de datos PostgreSQL)
+├── public/                 # Archivos estáticos
+├── clientes/               # Almacenamiento en disco de archivos subidos por RUC/Empresa
+└── src/                    # Código fuente del Frontend (React)
+    ├── App.jsx             # Componente raíz y definición de rutas
+    ├── main.jsx            # Punto de entrada de React
+    ├── api.js              # Cliente Axios configurado con el interceptor JWT
+    ├── Login.jsx           # Vista de inicio de sesión
+    ├── Dashboard.jsx       # Vista del Dashboard del Administrador
+    ├── CompanyDashboard.jsx# Vista detallada de la empresa (Cliente / Admin)
+    ├── CreateUserModal.jsx # Modal para registrar/editar empresas
+    ├── components/         # Componentes modulares de interfaz
+    │   ├── CompaniesSidebar.jsx   # Barra lateral de navegación entre empresas
+    │   ├── DocumentSection.jsx    # Módulo de gestión y visualización de documentos
+    │   ├── LibrosRegistrosSection.jsx # Subsección de Libros y Registros Contables
+    │   ├── PlameSection.jsx       # Subsección de planilla PLAME
+    │   └── TaxCalendarModal.jsx   # Modal de Calendario Tributario
+    └── hooks/
+        └── useDocumentSection.js  # Hook personalizado para manejo de estado de documentos
 ```
 
-Set any environment variable in a `.env` file or directly in the compose
-`environment:` section.  The `web` service uses `PORT=3500` by default; to
-start using Postgres simply add a `DATABASE_URL` value such as
-`postgres://user:pass@db:5432/intranet` and the helper in `db.js` will
-activate the pg pool.
+---
+
+## 👥 Roles y Permisos
+
+1. **`admin`**:
+   * Acceso completo al sistema, lista global de empresas, configuración de usuarios, auditoría y carga masiva de archivos.
+2. **`client`**:
+   * Acceso restringido únicamente a la información, documentos y secciones pertenecientes a su propio RUC.
+
+---
+
+## 🗄️ Modelo de Datos (Base de Datos)
+
+El esquema relacional en PostgreSQL administra las siguientes tablas principales:
+
+* **`companies`**: Datos de acceso y perfiles de empresas/administradores (RUC, Razón Social, Dirección, Usuario, Contraseña en Bcrypt, Rol, Permisos).
+* **`documents`**: Registro de archivos almacenados (ID, RUC, Sección, Año, Mes, Nombre, Ruta URL, Tipo, Comentarios, Estado de lectura, etc.).
+* **`metadata`**: Estado de notificaciones (leídos/no leídos por cliente y admin) por carpeta/sección.
+* **`history_logs`**: Registro de auditoría de acciones ejecutadas en la plataforma (subida/eliminación de documentos, creación de usuarios, etc.).
+
+---
+
+## ⚙️ Configuración y Variables de Entorno
+
+Crea un archivo `.env` en la raíz del proyecto basándote en el siguiente formato:
+
+```env
+# Servidor
+PORT=3000
+NODE_ENV=development
+
+# Base de Datos PostgreSQL (Obligatorio)
+DATABASE_URL=postgres://usuario:password@localhost:5432/intranet_db
+
+# Seguridad JWT y Bcrypt
+JWT_SECRET=super_secret_jwt_key_cambiar_en_produccion
+SALT_ROUNDS=10
+
+# Credenciales de Administrador por Defecto
+ADMIN_USUARIO=AJADMINISTRADOR
+ADMIN_CONTRASENA=197720
+
+# CORS (Orígenes permitidos separados por coma)
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# API URL para el proxy de Vite en desarrollo
+VITE_API_URL=http://localhost:3000
+```
+
+---
+
+## 💻 Instalación y Ejecución Local
+
+### 1. Requisitos Previos
+* Node.js v18+ 
+* PostgreSQL v14+ activo y con la base de datos creada.
+
+### 2. Instalar dependencias
+```bash
+npm install
+```
+
+### 3. Iniciar el Backend (Express)
+```bash
+npm run start
+# o para desarrollo continuo:
+node server.js
+```
+*El backend se iniciará en `http://localhost:3000` y creará las tablas automáticamente si no existen.*
+
+### 4. Iniciar el Frontend (Vite)
+En otra ventana de terminal:
+```bash
+npm run dev
+```
+*El frontend estará disponible en `http://localhost:5173`. Las llamadas a `/api` se redirigen automáticamente al backend por el proxy de Vite.*
+
+---
+
+## 🐳 Despliegue con Docker
+
+El proyecto incluye un entorno listo para producción usando Docker Compose con Node 20 y PostgreSQL 15:
+
+```bash
+# Construir la imagen y levantar los contenedores
+docker-compose up --build -d
+```
+
+* El servicio web estará escuchando en el puerto `3500` por defecto (`http://localhost:3500`).
+* La carpeta `./clientes` se monta como volumen persistente para no perder los archivos físicos almacenados.
+* La base de datos guarda sus datos en el volumen `pgdata`.
+
+---
+
+## 🔒 Seguridad Implementada
+
+* **Autenticación JWT**: Los usuarios obtienen un token con firma expirable al iniciar sesión, enviado vía encabezado `Authorization: Bearer <token>`.
+* **Cifrado de Contraseñas**: Uso de `bcrypt` para el hash seguro de claves.
+* **Seguridad de Archivos y Consultas SQL**: Consultas parametrizadas en `db.js` para prevenir inyección SQL. Sanitización de nombres de rutas y archivos para evitar *Directory Traversal*.
+* **Encabezados HTTP Seguros**: Protección activada mediante `Helmet` (CSP, HSTS, X-Frame-Options).
