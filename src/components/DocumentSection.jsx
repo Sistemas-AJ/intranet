@@ -660,6 +660,67 @@ const DocumentSection = ({
                 )}
             </div>
 
+            {/* Paginación */}
+            {!!hook.total && hook.total > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 15px', marginTop: '10px', backgroundColor: 'white',
+                    borderRadius: '8px', border: '1px solid #e5e7eb',
+                    fontSize: '0.85rem', color: '#475569', flexWrap: 'wrap', gap: '10px'
+                }}>
+                    <div>
+                        Mostrando <strong>{((hook.page || 1) - 1) * (hook.limit || 20) + 1}</strong> a <strong>{Math.min((hook.page || 1) * (hook.limit || 20), hook.total)}</strong> de <strong>{hook.total}</strong> documentos
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>Por página:</span>
+                            <select
+                                value={hook.limit || 20}
+                                onChange={(e) => {
+                                    if (hook.setLimit) hook.setLimit(Number(e.target.value));
+                                    if (hook.setPage) hook.setPage(1);
+                                }}
+                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                                disabled={(hook.page || 1) <= 1}
+                                onClick={() => hook.setPage && hook.setPage((hook.page || 1) - 1)}
+                                style={{
+                                    padding: '5px 12px', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                    backgroundColor: (hook.page || 1) <= 1 ? '#f1f5f9' : 'white',
+                                    color: (hook.page || 1) <= 1 ? '#94a3b8' : '#1e293b',
+                                    cursor: (hook.page || 1) <= 1 ? 'not-allowed' : 'pointer',
+                                    fontWeight: '600', fontSize: '0.85rem'
+                                }}
+                            >
+                                Anterior
+                            </button>
+                            <span>Página <strong>{hook.page || 1}</strong> de <strong>{hook.totalPages || 1}</strong></span>
+                            <button
+                                disabled={(hook.page || 1) >= (hook.totalPages || 1)}
+                                onClick={() => hook.setPage && hook.setPage((hook.page || 1) + 1)}
+                                style={{
+                                    padding: '5px 12px', borderRadius: '4px', border: '1px solid #cbd5e1',
+                                    backgroundColor: (hook.page || 1) >= (hook.totalPages || 1) ? '#f1f5f9' : 'white',
+                                    color: (hook.page || 1) >= (hook.totalPages || 1) ? '#94a3b8' : '#1e293b',
+                                    cursor: (hook.page || 1) >= (hook.totalPages || 1) ? 'not-allowed' : 'pointer',
+                                    fontWeight: '600', fontSize: '0.85rem'
+                                }}
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Action Buttons */}
             {hasZip && (
                 <button onClick={onCustomZipDownload || handleDownloadZip} style={secondaryBtnStyle}>
