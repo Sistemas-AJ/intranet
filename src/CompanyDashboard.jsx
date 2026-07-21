@@ -322,26 +322,26 @@ const CompanyDashboard = () => {
     }, [nextDeadline]);
 
 
-    // ── Hooks para secciones de documentos ──────────────────────────────────
-    const compName = company?.razonsocial || ruc;
-    const fichaRuc = useDocumentSection({ noPeriod: true, sectionLabel: 'Ficha RUC', companyName: compName, storageKey: `docs_${ruc}_fichaRuc` });
-    const reporteTributario = useDocumentSection({ sectionLabel: 'Reporte Tributario', companyName: compName, storageKey: `docs_${ruc}_reporteTributario` });
-    const declaracionesMensuales = useDocumentSection({ sectionLabel: 'Declaraciones Mensuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesMensuales` });
-    const declaracionesAnuales = useDocumentSection({ noMonth: true, sectionLabel: 'Declaraciones Anuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesAnuales` });
-    const plame_boletas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'boletas', sectionLabel: 'Plame - Boletas', companyName: compName, storageKey: `docs_${ruc}_plame_boletas` });
-    const plame_constancias = useDocumentSection({ multiple: true, zipLabel: 'constancias', sectionLabel: 'Plame - Constancias', companyName: compName, storageKey: `docs_${ruc}_plame_constancias` });
-    const plame_nps = useDocumentSection({ multiple: true, zipLabel: 'nps', sectionLabel: 'Plame - NPS', companyName: compName, storageKey: `docs_${ruc}_plame_nps` });
-    const librosRegistros_sire = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'sire', sectionLabel: 'Libros y Registros - Sire', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_sire` });
-    const librosRegistros_libroDiario = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'libro_diario', sectionLabel: 'Libros y Registros - Libro Diario', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_libroDiario` });
-    const librosRegistros_otrosLibros = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'otros_libros', sectionLabel: 'Libros y Registros - Otros Libros', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_otrosLibros` });
-    const afpNet = useDocumentSection({ hasType: true, sectionLabel: 'AFP NET', companyName: compName, storageKey: `docs_${ruc}_afpNet` });
-    const bancos = useDocumentSection({ hasType: true, sectionLabel: 'Bancos', companyName: compName, storageKey: `docs_${ruc}_bancos` });
-    const cajaChica = useDocumentSection({ hasType: true, sectionLabel: 'Control de Caja', companyName: compName, storageKey: `docs_${ruc}_cajaChica` });
-    const compras = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'compras', sectionLabel: 'Compras', companyName: compName, storageKey: `docs_${ruc}_compras` });
-    const ventas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'ventas', sectionLabel: 'Ventas', companyName: compName, storageKey: `docs_${ruc}_ventas` });
-    const otros_notificaciones = useDocumentSection({ sectionLabel: 'Otros - Notificaciones', companyName: compName, storageKey: `docs_${ruc}_otrosDocumentos_notificaciones` });
-    const otros_varios = useDocumentSection({ sectionLabel: 'Otros - Varios', companyName: compName, storageKey: `docs_${ruc}_otrosDocumentos_varios` });
-    const otros_constitucion = useDocumentSection({ sectionLabel: 'Otros - Constitución', companyName: compName, storageKey: `docs_${ruc}_otrosDocumentos_constitucion` });
+    // ── Hooks para secciones de documentos (carga bajo demanda según la sección activa) ──
+    const compName = company?.razonSocial || company?.razonsocial || ruc;
+    const fichaRuc = useDocumentSection({ noPeriod: true, sectionLabel: 'Ficha RUC', companyName: compName, storageKey: `docs_${ruc}_fichaRuc`, enabled: selectedPermission === 'fichaRuc' });
+    const reporteTributario = useDocumentSection({ sectionLabel: 'Reporte Tributario', companyName: compName, storageKey: `docs_${ruc}_reporteTributario`, enabled: selectedPermission === 'reporteTributario' });
+    const declaracionesMensuales = useDocumentSection({ sectionLabel: 'Declaraciones Mensuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesMensuales`, enabled: selectedPermission === 'declaracionesMensuales' });
+    const declaracionesAnuales = useDocumentSection({ noMonth: true, sectionLabel: 'Declaraciones Anuales', companyName: compName, storageKey: `docs_${ruc}_declaracionesAnuales`, enabled: selectedPermission === 'declaracionesAnuales' });
+    const plame_boletas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'boletas', sectionLabel: 'Plame - Boletas', companyName: compName, storageKey: `docs_${ruc}_plame_boletas`, enabled: selectedPermission === 'plame' });
+    const plame_constancias = useDocumentSection({ multiple: true, zipLabel: 'constancias', sectionLabel: 'Plame - Constancias', companyName: compName, storageKey: `docs_${ruc}_plame_constancias`, enabled: selectedPermission === 'plame' });
+    const plame_nps = useDocumentSection({ multiple: true, zipLabel: 'nps', sectionLabel: 'Plame - NPS', companyName: compName, storageKey: `docs_${ruc}_plame_nps`, enabled: selectedPermission === 'plame' });
+    const librosRegistros_sire = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'sire', sectionLabel: 'Libros y Registros - Sire', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_sire`, enabled: selectedPermission === 'librosRegistros' });
+    const librosRegistros_libroDiario = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'libro_diario', sectionLabel: 'Libros y Registros - Libro Diario', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_libroDiario`, enabled: selectedPermission === 'librosRegistros' });
+    const librosRegistros_otrosLibros = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'otros_libros', sectionLabel: 'Libros y Registros - Otros Libros', companyName: compName, storageKey: `docs_${ruc}_librosRegistros_otrosLibros`, enabled: selectedPermission === 'librosRegistros' });
+    const afpNet = useDocumentSection({ hasType: true, sectionLabel: 'AFP NET', companyName: compName, storageKey: `docs_${ruc}_afpNet`, enabled: selectedPermission === 'afpNet' });
+    const bancos = useDocumentSection({ hasType: true, sectionLabel: 'Bancos', companyName: compName, storageKey: `docs_${ruc}_bancos`, enabled: selectedPermission === 'bancos' });
+    const cajaChica = useDocumentSection({ hasType: true, sectionLabel: 'Control de Caja', companyName: compName, storageKey: `docs_${ruc}_cajaChica`, enabled: selectedPermission === 'cajaChica' });
+    const compras = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'compras', sectionLabel: 'Compras', companyName: compName, storageKey: `docs_${ruc}_compras`, enabled: selectedPermission === 'compras' });
+    const ventas = useDocumentSection({ multiple: true, hasZip: true, zipLabel: 'ventas', sectionLabel: 'Ventas', companyName: compName, storageKey: `docs_${ruc}_ventas`, enabled: selectedPermission === 'ventas' });
+    const otros_notificaciones = useDocumentSection({ sectionLabel: 'Otros - Notificaciones', companyName: compName, storageKey: `docs_${ruc}_otrosDocumentos_notificaciones`, enabled: selectedPermission === 'otrosDocumentos' });
+    const otros_varios = useDocumentSection({ sectionLabel: 'Otros - Varios', companyName: compName, storageKey: `docs_${ruc}_otrosDocumentos_varios`, enabled: selectedPermission === 'otrosDocumentos' });
+    const otros_constitucion = useDocumentSection({ sectionLabel: 'Otros - Constitución', companyName: compName, storageKey: `docs_${ruc}_otrosDocumentos_constitucion`, enabled: selectedPermission === 'otrosDocumentos' });
 
     // ─── Lógica de Notificaciones Seccionadas ──────────────────────────────
     // Usamos los datos del hook directamente para notificaciones más responsivas
@@ -516,22 +516,24 @@ const CompanyDashboard = () => {
         };
         fetchCompany();
 
-        // also sync full companies list for sidebar
-        const syncCompanies = async () => {
-            try {
-                const { data } = await api.get('/companies');
-                if (Array.isArray(data)) {
-                    setCompanies(data);
-                    localStorage.setItem('companies', JSON.stringify(data));
+        // solo sincronizar lista completa de empresas si es administrador (para el sidebar)
+        if (!isClient) {
+            const syncCompanies = async () => {
+                try {
+                    const { data } = await api.get('/companies');
+                    if (Array.isArray(data)) {
+                        setCompanies(data);
+                        localStorage.setItem('companies', JSON.stringify(data));
+                    }
+                } catch (e) {
+                    console.error('Error sincronizando empresas:', e);
+                    const saved = localStorage.getItem('companies');
+                    if (saved) setCompanies(JSON.parse(saved));
                 }
-            } catch (e) {
-                console.error('Error sincronizando empresas:', e);
-                const saved = localStorage.getItem('companies');
-                if (saved) setCompanies(JSON.parse(saved));
-            }
-        };
-        syncCompanies();
-    }, [ruc]);
+            };
+            syncCompanies();
+        }
+    }, [ruc, isClient]);
 
     const handleLogout = () => {
         // remove only authentication-related items; keep cached companies/docs intact

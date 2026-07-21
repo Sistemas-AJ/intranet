@@ -86,6 +86,7 @@ const useDocumentSection = ({
     noMonth = false,
     sectionLabel = 'Documentos',
     companyName = '',
+    enabled = true,
 } = {}) => {
     const [list, setList] = React.useState([]);
     const [metadata, setMetadata] = React.useState({ unreadForAdmin: false, unreadForClient: false, events: [] });
@@ -108,9 +109,9 @@ const useDocumentSection = ({
         'Julio': '07', 'Agosto': '08', 'Septiembre': '09', 'Octubre': '10', 'Noviembre': '11', 'Diciembre': '12'
     };
 
-    // ── Cargar datos desde el servidor al montar ────────────────────────────
+    // ── Cargar datos desde el servidor solo cuando la sección está activa (enabled === true) ──
     React.useEffect(() => {
-        if (!storageKey) return;
+        if (!storageKey || !enabled) return;
         let cancelled = false;
         const loadData = async () => {
             const { data, metadata: serverMeta } = await docsApi.load(storageKey);
@@ -122,7 +123,7 @@ const useDocumentSection = ({
         };
         loadData();
         return () => { cancelled = true; };
-    }, [storageKey]);
+    }, [storageKey, enabled]);
 
     const validateFile = async (file, year, month) => {
         const isDuplicate = list.some(item => item.name === file.name);
