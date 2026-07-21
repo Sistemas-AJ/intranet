@@ -16,19 +16,33 @@ const fileToBase64 = (file) =>
 
 // ── Funciones de API para sincronización con el servidor ────────────────────
 const docsApi = {
-    async load(storageKey) {
+    async load(storageKey, options = {}) {
         try {
-            const res = await api.get('/docs', { params: { key: storageKey } });
+            const params = { key: storageKey };
+            if (options.year) params.year = options.year;
+            if (options.month) params.month = options.month;
+            if (options.page) params.page = options.page;
+            if (options.limit) params.limit = options.limit;
+
+            const res = await api.get('/docs', { params });
             if (res.status === 200) {
                 const data = res.data;
                 if (data && data.list) {
-                    return { source: 'server', data: data.list, metadata: data.metadata };
+                    return {
+                        source: 'server',
+                        data: data.list,
+                        metadata: data.metadata,
+                        total: data.total || data.list.length,
+                        page: data.page || 1,
+                        limit: data.limit || data.list.length,
+                        totalPages: data.totalPages || 1,
+                    };
                 }
             }
         } catch (e) {
             console.warn('[docsApi] Error cargando desde servidor:', e);
         }
-        return { source: 'empty', data: [], metadata: { unreadForAdmin: false, unreadForClient: false, events: [] } };
+        return { source: 'empty', data: [], metadata: { unreadForAdmin: false, unreadForClient: false, events: [] }, total: 0, page: 1, limit: 20, totalPages: 1 };
     },
 
     async saveMetadata(storageKey, metadataUpdates) {
@@ -95,6 +109,12 @@ const useDocumentSection = ({
     const [filterMonth, setFilterMonth] = React.useState('');
     const [showForm, setShowForm] = React.useState(false);
 
+    // Estados de paginación
+    const [page, setPage] = React.useState(1);
+    const [limit, setLimit] = React.useState(20);
+    const [total, setTotal] = React.useState(0);
+    const [totalPages, setTotalPages] = React.useState(1);
+
     const [uploadYear, setUploadYear] = React.useState('');
     const [uploadMonth, setUploadMonth] = React.useState('');
     const [uploadType, setUploadType] = React.useState('');
@@ -109,21 +129,39 @@ const useDocumentSection = ({
         'Julio': '07', 'Agosto': '08', 'Septiembre': '09', 'Octubre': '10', 'Noviembre': '11', 'Diciembre': '12'
     };
 
+    // Al cambiar filtro de año o mes, resetear a página 1
+    const handleSetFilterYear = React.useCallback((val) => {
+        setFilterYear(val);
+        setPage(1);
+    }, []);
+
+    const handleSetFilterMonth = React.useCallback((val) => {
+        setFilterMonth(val);
+        setPage(1);
+    }, []);
+
     // ── Cargar datos desde el servidor solo cuando la sección está activa (enabled === true) ──
     React.useEffect(() => {
         if (!storageKey || !enabled) return;
         let cancelled = false;
         const loadData = async () => {
-            const { data, metadata: serverMeta } = await docsApi.load(storageKey);
+            const res = await docsApi.load(storageKey, {
+                year: filterYear,
+                month: filterMonth,
+                page,
+                limit
+            });
             if (!cancelled) {
-                setList(data || []);
-                if (serverMeta) setMetadata(serverMeta);
+                setList(res.data || []);
+                if (res.metadata) setMetadata(res.metadata);
+                setTotal(res.total || 0);
+                setTotalPages(res.totalPages || 1);
                 setLoaded(true);
             }
         };
         loadData();
         return () => { cancelled = true; };
-    }, [storageKey, enabled]);
+    }, [storageKey, enabled, filterYear, filterMonth, page, limit]);
 
     const validateFile = async (file, year, month) => {
         const isDuplicate = list.some(item => item.name === file.name);
@@ -433,7 +471,9 @@ const useDocumentSection = ({
         clearNotifications,
         toggleNonDeducible,
         setList,
-        setMetadata,
+        page, setPage,
+        limit, setLimit,
+        total, totalPages,
         noPeriod,
         noMonth,
         uploadError,
@@ -442,6 +482,7 @@ const useDocumentSection = ({
         setSuccessMessage,
     }), [
         list, metadata, filteredList, availableYears, filterYear, filterMonth, showForm,
+        page, limit, total, totalPages,
         uploadYear, uploadMonth, uploadType, uploadDescription, uploadFile, uploadFiles,
         handleUpload, handleSave, handleDelete, handleDownloadZip,
         markAllAsSeenByAdmin, markAllAsSeenByClient, markAsRead, clearNotifications, uploadError, successMessage, noPeriod, noMonth

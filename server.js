@@ -567,7 +567,45 @@ app.get('/api/docs', requireRole('admin', 'client'), async (req, res) => {
     }
 
     try {
-        const docs = await db.all('SELECT * FROM documents WHERE storageKey = ?', [key]);
+        const { year, month, page, limit } = req.query;
+
+        let whereClauses = ['storageKey = ?'];
+        let params = [key];
+
+        if (year) {
+            whereClauses.push('year = ?');
+            params.push(String(year));
+        }
+
+        if (month) {
+            whereClauses.push('month = ?');
+            params.push(String(month));
+        }
+
+        const whereSql = whereClauses.join(' AND ');
+
+        // Obtener el conteo total de documentos filtrados
+        const countRow = await db.get(`SELECT COUNT(*) as count FROM documents WHERE ${whereSql}`, params);
+        const total = parseInt(countRow?.count || '0', 10);
+
+        let docs;
+        let pageNum = page ? Math.max(1, parseInt(page, 10)) : null;
+        let limitNum = limit ? Math.max(1, parseInt(limit, 10)) : null;
+        let totalPages = limitNum ? Math.ceil(total / limitNum) : 1;
+
+        if (pageNum && limitNum) {
+            const offset = (pageNum - 1) * limitNum;
+            docs = await db.all(
+                `SELECT * FROM documents WHERE ${whereSql} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+                [...params, limitNum, offset]
+            );
+        } else {
+            docs = await db.all(
+                `SELECT * FROM documents WHERE ${whereSql} ORDER BY timestamp DESC`,
+                params
+            );
+        }
+
         const meta = await db.get('SELECT * FROM metadata WHERE storageKey = ?', [key]);
         res.json({
             list: docs.map((d) => ({
@@ -576,6 +614,10 @@ app.get('/api/docs', requireRole('admin', 'client'), async (req, res) => {
                 seenByAdmin: fromDbBoolean(d.seenByAdmin),
                 seenByClient: fromDbBoolean(d.seenByClient),
             })),
+            total,
+            page: pageNum || 1,
+            limit: limitNum || total,
+            totalPages: totalPages || 1,
             metadata: meta
                 ? {
                     unreadForAdmin: fromDbBoolean(meta.unreadForAdmin),
